@@ -28,97 +28,163 @@ It fetches the video transcript, splits it into chunks, generates embeddings, st
 | **Transcript Fetching** | yt-dlp |
 | **Language** | Python 3.10+ |
 
----
+------------------------------------------
+Steps to run the project-
 
-## ⚙️ Setup Instructions
+🧩 1️⃣ Clone the project
 
-### 1️⃣ Clone the Repository
-```bash
+Open PowerShell, Git Bash, or VS Code terminal, and run:
+
 git clone https://github.com/kartikeyaswarup-m1/RagTube.git
 cd RagTube/backend
-2️⃣ Create and Activate Virtual Environment
-bash
 
+🧩 2️⃣ Create and activate a virtual environment
+🔹 On Windows:
 python -m venv venv
 venv\Scripts\activate
-3️⃣ Install Dependencies
-bash
+
+
+After this, your terminal should start with (venv) — this means it’s activated.
+
+🧩 3️⃣ Install dependencies
+
+Run:
 
 pip install -r requirements.txt
-(If there’s no requirements.txt, you can install manually)
+
+
+If there’s no requirements.txt, use this instead:
+
 pip install fastapi uvicorn yt-dlp requests ollama faiss-cpu numpy python-dotenv
 
-4️⃣ Ensure Ollama is Running
-Install Ollama from https://ollama.com/ and pull required models:
+🧩 4️⃣ Install and set up Ollama
+
+Download Ollama from:
+👉 https://ollama.com/download
+
+After installation, open a new terminal and test:
+
+ollama --version
 
 
+Pull the models used in this project:
 
 ollama pull phi3
 ollama pull nomic-embed-text
-🔧 Configuration
-All configuration values are stored in the .env file located in backend/.env.
 
 
+⚠️ This may take a few minutes (models download once).
 
-# ===== Backend Config =====
+🧩 5️⃣ Check the .env file
+
+In the backend folder, there’s a file named .env.
+It already has all required settings.
+
+Make sure it looks like this:
+
 VECTORSTORE_DIR=./vectorstore
 
-# ===== Ollama Config =====
 OLLAMA_MODEL=phi3
 EMBED_MODEL=nomic-embed-text
 OLLAMA_HOST=http://127.0.0.1:11434
 
-# ===== FastAPI Config =====
 BACKEND_HOST=127.0.0.1
 BACKEND_PORT=8000
-🔁 Switching to a Different Model
-If you want to use a different model (for example, llama3 or gemma):
 
-Pull the model in Ollama:
 
-ollama pull llama3
-Update this line in your .env file:
+🔁 If you want to use another model (like llama3), just change this line:
 
 OLLAMA_MODEL=llama3
-That’s it!
-The backend automatically reads the model name from the .env file —
-you do not need to modify any Python code.
-
-▶️ Running the Backend
-Run the FastAPI server from the project root:
 
 
-cd C:\Users\HP\RagTube
+and make sure to pull it using ollama pull llama3.
+
+🧩 6️⃣ Run the backend
+
+From the project root folder (RagTube):
+
 uvicorn backend.app.main:app --reload
-You’ll see:
+
+
+If everything is okay, you’ll see:
 
 INFO:     Uvicorn running on http://127.0.0.1:8000
-Then open:
+
+🧩 7️⃣ Open the API Docs
+
+Go to your browser and open:
 👉 http://127.0.0.1:8000/docs
 
-🧩 API Endpoints
-/ingest
-Fetches transcript, chunks it, and builds FAISS vectorstore.
+This page shows all available endpoints:
 
-Query:
-GET /ingest?video_url=<YOUTUBE_URL>
-Example:
+/ingest — to load a YouTube video transcript
 
-http://127.0.0.1:8000/ingest?video_url=https://youtu.be/RRVYpIET_RU
-/query
-Asks a question based on the ingested video.
+/query — to ask questions about the video
 
-Query:
-GET /query?question=<YOUR_QUESTION>
-Example:
-http://127.0.0.1:8000/query?question=What is this video about?
-📦 Output Files
-After ingestion, you’ll see:
+🧩 8️⃣ Try it out!
+🔹 Step 1 — Ingest a video
 
-backend/vectorstore/
- ├── faiss.index
- └── mapping.pkl
-These files store embeddings for the ingested video transcript.
+Click on /ingest
+
+Click “Try it out”
+
+Paste any YouTube link (with English subtitles)
+
+Click Execute
+
+Wait a few seconds ⏳
+You’ll get something like:
+
+{
+  "video_url": "...",
+  "status": "ingested",
+  "chunks": 63
+}
+
+
+A folder named vectorstore will appear automatically — it stores your embeddings.
+
+🔹 Step 2 — Ask a question
+
+Click on /query
+
+Click “Try it out”
+
+In the question box, type something like:
+
+What is this video about?
+
+
+Click Execute
+
+After a few seconds, you’ll see a meaningful answer from the local LLM 🎯
+
+✅ Done!
+
+You’ve now successfully:
+
+Loaded a video
+
+Built its embeddings
+
+Queried it using RAG and a local model (no internet needed!)
+
+🧠 Optional
+
+If you want to stop the server:
+
+Ctrl + C
+
+
+If you want to change model:
+
+Edit .env → OLLAMA_MODEL=llama3 (or any other model)
+
+Pull the model using ollama pull llama3
+
+Restart the backend.
+
+----------------------------------------------------------------------
 
 
 
@@ -138,8 +204,6 @@ Cloud LLM integration for faster inference
 4️⃣ Get the AI-generated answer! 🎯
 
 
-
-✨ Built with ❤️ using FastAPI, Ollama, and FAISS.
 
 ---
 
