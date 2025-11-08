@@ -51,16 +51,14 @@ pip install fastapi uvicorn yt-dlp requests ollama faiss-cpu numpy python-dotenv
 4️⃣ Ensure Ollama is Running
 Install Ollama from https://ollama.com/ and pull required models:
 
-bash
+
 
 ollama pull phi3
 ollama pull nomic-embed-text
 🔧 Configuration
 All configuration values are stored in the .env file located in backend/.env.
 
-Default:
 
-bash
 
 # ===== Backend Config =====
 VECTORSTORE_DIR=./vectorstore
@@ -81,8 +79,6 @@ Pull the model in Ollama:
 ollama pull llama3
 Update this line in your .env file:
 
-bash
-
 OLLAMA_MODEL=llama3
 That’s it!
 The backend automatically reads the model name from the .env file —
@@ -91,13 +87,10 @@ you do not need to modify any Python code.
 ▶️ Running the Backend
 Run the FastAPI server from the project root:
 
-bash
 
 cd C:\Users\HP\RagTube
 uvicorn backend.app.main:app --reload
 You’ll see:
-
-arduino
 
 INFO:     Uvicorn running on http://127.0.0.1:8000
 Then open:
@@ -108,32 +101,19 @@ Then open:
 Fetches transcript, chunks it, and builds FAISS vectorstore.
 
 Query:
-
-bash
-
 GET /ingest?video_url=<YOUTUBE_URL>
 Example:
-
-bash
 
 http://127.0.0.1:8000/ingest?video_url=https://youtu.be/RRVYpIET_RU
 /query
 Asks a question based on the ingested video.
 
 Query:
-
-bash
-
 GET /query?question=<YOUR_QUESTION>
 Example:
-
-bash
-
 http://127.0.0.1:8000/query?question=What is this video about?
 📦 Output Files
 After ingestion, you’ll see:
-
-pgsql
 
 backend/vectorstore/
  ├── faiss.index
