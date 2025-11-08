@@ -78,13 +78,11 @@ If you want to use a different model (for example, llama3 or gemma):
 
 Pull the model in Ollama:
 
-
-Copy code
 ollama pull llama3
 Update this line in your .env file:
 
 bash
-Copy code
+
 OLLAMA_MODEL=llama3
 That’s it!
 The backend automatically reads the model name from the .env file —
