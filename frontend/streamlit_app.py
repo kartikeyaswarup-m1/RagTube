@@ -1,96 +1,166 @@
 import streamlit as st
 import requests
+import json
 import os
-from typing import List
 
 # Config
-DEFAULT_BACKEND = os.getenv("ST_BACKEND_URL", "http://127.0.0.1:8000")
-BACKEND_INGEST = DEFAULT_BACKEND + "/ingest"
-BACKEND_QUERY = DEFAULT_BACKEND + "/query"
+BACKEND = os.getenv("ST_BACKEND_URL", "http://127.0.0.1:8000")
+st.set_page_config(page_title="RagTube", layout="centered", initial_sidebar_state="expanded")
 
-st.set_page_config(page_title="RagTube UI", layout="wide")
+# Minimal styling
+st.markdown("""
+<style>
+* { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+body, [data-testid="stAppViewContainer"] {
+    background-color: #0f0f0f;
+    color: #e5e5e5;
+}
+h1 { font-size: 28px; font-weight: 700; margin: 0; color: #e5e5e5; }
+h2 { font-size: 14px; font-weight: 500; color: #888; margin: 16px 0 8px 0; }
+.stTextInput input, .stTextArea textarea {
+    background-color: #1a1a1a !important;
+    border: 1px solid #333 !important;
+    border-radius: 6px !important;
+    color: #e5e5e5 !important;
+    font-size: 14px !important;
+}
+.stTextInput input:focus, .stTextArea textarea:focus {
+    border: 1px solid #666 !important;
+    box-shadow: none !important;
+}
+.stButton button {
+    background-color: #fff;
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 14px;
+}
+.stButton button:hover {
+    background-color: #ccc;
+}
+.message-user {
+    background-color: #1a1a1a;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin: 8px 0;
+    color: #e5e5e5;
+}
+.message-assistant {
+    background-color: #0f0f0f;
+    padding: 12px 14px;
+    margin: 8px 0;
+    color: #e5e5e5;
+    line-height: 1.5;
+}
+.stInfo, .stWarning, .stError {
+    background-color: #1a1a1a !important;
+    border: 1px solid #333 !important;
+    border-radius: 6px !important;
+    padding: 12px !important;
+    color: #e5e5e5 !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
-st.title("RagTube — Streamlit UI")
+# Session state
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "video" not in st.session_state:
+    st.session_state.video = None
 
-tabs = st.tabs(["Ingest", "Query", "Vectorstore"])
+def extract_video_id(url: str) -> str:
+    if "v=" in url:
+        return url.split("v=")[1].split("&")[0]
+    if "youtu.be/" in url:
+        return url.split("youtu.be/")[-1].split("?")[0]
+    return url[:11]
 
-# Ingest tab
-with tabs[0]:
-    st.header("Ingest YouTube Video")
-    video_url = st.text_input("YouTube URL", placeholder="https://www.youtube.com/watch?v=...")
-    col1, col2 = st.columns([3,1])
-    with col1:
-        ingest_btn = st.button("Ingest video")
-    with col2:
-        clear_history = st.button("Clear history")
+# Sidebar
+with st.sidebar:
+    st.markdown("## Previous Queries")
+    if st.session_state.messages:
+        count = 0
+        for msg in st.session_state.messages:
+            if msg["role"] == "user":
+                q = msg["content"][:50]
+                st.caption(f"• {q}...")
+                count += 1
+                if count >= 8:
+                    break
+    else:
+        st.caption("No queries yet")
+    if st.button("Clear History", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
 
-    # simple history stored in session_state
-    if "ingest_history" not in st.session_state:
-        st.session_state.ingest_history = []
+# Header
+st.markdown("# RagTube")
+st.markdown("Ask questions about YouTube Lectures and Videos")
+st.markdown("---")
 
-    if clear_history:
-        st.session_state.ingest_history = []
-        st.success("History cleared")
+# Ingest
+st.markdown("## Load Video")
+url = st.text_input("YouTube URL", placeholder="https://youtube.com/watch?v=...", label_visibility="collapsed")
+if st.button("Load", use_container_width=True):
+    if url:
+        with st.spinner("Processing..."):
+            try:
+                r = requests.get(f"{BACKEND}/ingest", params={"video_url": url}, timeout=300)
+                d = r.json()
+                if r.status_code == 200:
+                    st.session_state.video = {"id": extract_video_id(url), "chunks": d.get("chunks", 0)}
+                    st.success(f"Loaded: {d['chunks']} chunks")
+                else:
+                    st.error(d.get("transcript", "Error"))
+            except Exception as e:
+                st.error(str(e))
+    else:
+        st.error("Enter a URL")
 
-    if ingest_btn:
-        if not video_url.strip():
-            st.error("Please paste a YouTube URL first.")
-        else:
-            params = {"video_url": video_url.strip()}
-            with st.spinner("Ingesting video (fetch transcript, chunk, create embeddings)..."):
-                try:
-                    resp = requests.get(BACKEND_INGEST, params=params, timeout=300)
-                    data = resp.json()
-                    if resp.status_code == 200 and data.get("status") == "ingested":
-                        st.success(f"Ingested: {data.get('chunks')} chunks")
-                        st.session_state.ingest_history.insert(0, {"url": video_url, "chunks": data.get("chunks")})
-                    else:
-                        # show helpful error info (fetch_transcript may return string)
-                        st.error(f"Ingest failed: {data}")
-                except requests.exceptions.RequestException as e:
-                    st.error(f"Request failed: {e}")
+if st.session_state.video:
+    st.caption(f"Video: {st.session_state.video['id']} • {st.session_state.video['chunks']} chunks")
+else:
+    st.caption("No video loaded")
 
-    if st.session_state.ingest_history:
-        st.subheader("Recent ingests")
-        for entry in st.session_state.ingest_history[:10]:
-            st.write(f"- `{entry['url']}` — chunks: {entry['chunks']}")
+st.markdown("---")
 
-# Query tab
-with tabs[1]:
-    st.header("Ask a question about the last ingested video")
-    question = st.text_input("Your question", placeholder="What is this video about?")
-    top_k = st.slider("Retrieve top K contexts", min_value=1, max_value=10, value=3)
-    ask_btn = st.button("Ask")
+# Chat
+st.markdown("## Chat")
+for msg in st.session_state.messages:
+    if msg["role"] == "user":
+        st.markdown(f"**You:** {msg['content']}", unsafe_allow_html=True)
+    else:
+        st.markdown(f"{msg['content']}", unsafe_allow_html=True)
+st.markdown("---")
 
-    if ask_btn:
-        if not question.strip():
-            st.error("Please type a question.")
-        else:
-            params = {"question": question.strip()}
-            with st.spinner("Querying vectorstore and LLM..."):
-                try:
-                    resp = requests.get(BACKEND_QUERY, params=params, timeout=120)
-                    data = resp.json()
-                    if resp.status_code == 200 and "answer" in data:
-                        st.subheader("Answer")
-                        st.write(data["answer"])
-                    else:
-                        st.error(f"Query failed: {data}")
-                except requests.exceptions.RequestException as e:
-                    st.error(f"Request failed: {e}")
-
-# Vectorstore tab (status & debug)
-with tabs[2]:
-    st.header("Vectorstore / Debug")
-    st.write("This shows local files and a quick test for retrieval.")
-
-    check_btn = st.button("Check vectorstore files")
-    if check_btn:
-        try:
-            # Ask backend indirectly by trying a small query (backend will error if not present)
-            resp = requests.get(BACKEND_QUERY, params={"question":"__VECTORSTORE_CHECK__"}, timeout=10)
-            data = resp.json()
-            st.json(data)
-        except requests.exceptions.RequestException as e:
-            st.error(f"Request failed: {e}")
-            st.info("Make sure the backend is running and you have ingested at least one video.")
+# Query
+q = st.text_input("Question", placeholder="Ask something...", label_visibility="collapsed")
+if st.button("Send", use_container_width=True):
+    if not q:
+        st.error("Enter a question")
+    elif not st.session_state.video:
+        st.error("Load a video first")
+    else:
+        st.session_state.messages.append({"role": "user", "content": q})
+        with st.spinner("Thinking..."):
+            try:
+                r = requests.get(f"{BACKEND}/query", params={"question": q}, stream=True, timeout=120)
+                if r.status_code == 200:
+                    answer = ""
+                    for line in r.iter_lines(decode_unicode=True):
+                        if line:
+                            try:
+                                obj = json.loads(line)
+                                if "text" in obj:
+                                    answer += obj["text"]
+                                elif obj.get("done"):
+                                    break
+                            except:
+                                pass
+                    st.session_state.messages.append({"role": "assistant", "content": answer})
+                else:
+                    st.error("Query failed")
+            except Exception as e:
+                st.error(str(e))
+        st.rerun()
