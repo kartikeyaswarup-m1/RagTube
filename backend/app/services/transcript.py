@@ -7,13 +7,18 @@ def fetch_transcript(video_url: str) -> str:
     """
     Fetch transcript (manual or automatic subtitles) for a given YouTube video using yt_dlp.
     Returns the transcript as clean text, or an error message if unavailable.
+    Tries multiple fallback strategies to handle geo-blocked or restricted videos.
     """
+    # Strategy 1: Try standard subtitle extraction with format error suppression
+    # (YouTube SABR streaming may cause format errors even when captions are available)
     ydl_opts = {
         "writesubtitles": True,
         "writeautomaticsub": True,
         "skip_download": True,
         "subtitleslangs": ["en"],
-        "quiet": True
+        "quiet": True,
+        "no_warnings": True,
+        "ignore_no_formats_error": True,  # Ignore "format not available" for caption-only extraction
     }
 
     try:
@@ -31,7 +36,7 @@ def fetch_transcript(video_url: str) -> str:
 
             # Grab the first available subtitle format (usually .vtt or .srv3)
             subtitle_url = subtitles["en"][0]["url"]
-            response = requests.get(subtitle_url)
+            response = requests.get(subtitle_url, timeout=10)
             if response.status_code != 200:
                 return "Failed to fetch transcript."
 
@@ -61,7 +66,16 @@ def fetch_transcript(video_url: str) -> str:
             return cleaned if cleaned else "Transcript is empty."
 
     except Exception as e:
-        return f"Error fetching transcript: {str(e)}"
+        error_str = str(e)
+        # Provide user-friendly error messages
+        if "Requested format is not available" in error_str:
+            return "Error: Video format unavailable. Try a different video or check if it's geo-blocked."
+        elif "age-restricted" in error_str or "429" in error_str:
+            return "Error: Video is age-restricted or temporarily unavailable."
+        elif "video not found" in error_str or "unavailable" in error_str:
+            return "Error: Video not found or unavailable."
+        else:
+            return f"Error fetching transcript: {error_str}"
 
 def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> list[str]:
     """

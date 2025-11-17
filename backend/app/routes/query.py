@@ -43,7 +43,7 @@ async def query_llm(question: str = Query(..., description="Your question")):
         )
 
         # Step 3 – ask the LLM
-        model = os.getenv("OLLAMA_MODEL", "phi3")
+        model = os.getenv("OLLAMA_MODEL", "llama3")
         response = ollama.chat(
             model=model,
             messages=[
