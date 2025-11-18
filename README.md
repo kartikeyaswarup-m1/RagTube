@@ -1,219 +1,219 @@
-# 🎥 RagTube — YouTube Video Q&A Assistant
+# RagTube
 
-**RagTube** is a Retrieval-Augmented Generation (RAG) based system that lets you **ask questions about any YouTube video**.  
-It fetches the video transcript, splits it into chunks, generates embeddings, stores them in FAISS, and uses a local LLM (via Ollama) to answer user queries.
+Ask questions about YouTube videos using local Retrieval-Augmented Generation (RAG) powered by Ollama.
 
----
+## Features
 
-## 🚀 Features
+- **Local Processing** – No API keys needed. Everything runs on your machine.
+- **YouTube Integration** – Automatically fetch and process YouTube transcripts.
+- **Vector Search** – FAISS-based semantic search for relevant content.
+- **Streaming Responses** – Real-time LLM output as answers stream in.
+- **Chat History** – Previous queries stored in sidebar for quick reference.
+- **Minimalist UI** – Clean, dark-themed interface with Streamlit.
 
-- Fetches YouTube transcripts automatically (manual or auto captions)
-- Cleans and chunks transcripts into meaningful sections
-- Generates embeddings locally using Ollama
-- Stores vectors in FAISS (local vector database)
-- Retrieves the most relevant chunks for a given question
-- Answers questions using a local LLM model (offline!)
+## Architecture
 
----
+```
+YouTube Video
+    ↓
+Transcript Fetch (yt-dlp)
+    ↓
+Text Chunking
+    ↓
+Embeddings (Ollama)
+    ↓
+FAISS Vector Store
+    ↓
+Semantic Search + LLM
+    ↓
+Streamed Answer
+```
 
-## 🧠 Tech Stack
+## Prerequisites
 
-| Component | Technology |
-|------------|-------------|
-| **Backend** | FastAPI (Python) |
-| **LLM Runtime** | Ollama |
-| **Vector Database** | FAISS |
-| **Embeddings** | `nomic-embed-text` (via Ollama) |
-| **Language Model** | Default: `phi3` |
-| **Transcript Fetching** | yt-dlp |
-| **Language** | Python 3.10+ |
+1. **Python 3.10+**
+2. **Ollama** – Download from [ollama.ai](https://ollama.ai)
+3. **Required Models** (pull via Ollama):
+   ```bash
+   ollama pull llama3
+   ollama pull nomic-embed-text
+   ```
 
-------------------------------------------
-Steps to run the project-
+## Installation
 
-🧩 1️⃣ Clone the project
+1. Clone the repo:
+   ```bash
+   git clone https://github.com/kartikeyaswarup-m1/ragtube.git
+   cd ragtube
+   ```
 
-Open PowerShell, Git Bash, or VS Code terminal, and run:
+2. Create a virtual environment:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
 
-git clone https://github.com/kartikeyaswarup-m1/RagTube.git
-cd RagTube/backend
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-🧩 2️⃣ Create and activate a virtual environment
-🔹 On Windows:
-python -m venv venv
-venv\Scripts\activate
+4. Set up environment variables (copy `.env.example` or create `.env`):
+   ```bash
+   OLLAMA_HOST=http://127.0.0.1:11434
+   OLLAMA_MODEL=llama3
+   EMBED_MODEL=nomic-embed-text
+   VECTORSTORE_DIR=./vectorstore
+   ```
 
+## Usage
 
-After this, your terminal should start with (venv) — this means it’s activated.
+### Start Ollama
 
-🧩 3️⃣ Install dependencies
+```bash
+ollama serve
+```
 
-Run:
+### Run Backend (FastAPI)
 
-pip install -r requirements.txt
+```bash
+uvicorn backend.app.main:app --reload
+```
 
+Backend runs on `http://127.0.0.1:8000`
 
-If there’s no requirements.txt, use this instead:
+### Run Frontend (Streamlit)
 
-pip install fastapi uvicorn yt-dlp requests ollama faiss-cpu numpy python-dotenv
+```bash
+streamlit run frontend/streamlit_app.py
+```
 
-🧩 4️⃣ Install and set up Ollama
+Frontend runs on `http://localhost:8501`
 
-Download Ollama from:
-👉 https://ollama.com/download
+### Quick Start
 
-After installation, open a new terminal and test:
+1. Open Streamlit UI in browser
+2. Paste a YouTube URL in the "Load Video" section
+3. Click "Load" to ingest and process the video
+4. Type a question in the "Question" field
+5. Click "Send" to stream the answer
 
-ollama --version
+## API Endpoints
 
+### Ingest a Video
+```
+GET /ingest?video_url=https://youtube.com/watch?v=...
+```
+Returns:
+```json
+{
+  "status": "ingested",
+  "chunks": 42,
+  "video_id": "dQw4w9WgXcQ"
+}
+```
 
-Pull the models used in this project:
+### Query
+```
+GET /query?question=What is the main topic?
+```
+Streams NDJSON response:
+```
+{"text": "The"}
+{"text": " main"}
+{"text": " topic"}
+{"done": true}
+```
 
-ollama pull phi3
-ollama pull nomic-embed-text
+## Project Structure
 
+```
+ragtube/
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # FastAPI entry point
+│   │   ├── config.py            # Configuration & env loading
+│   │   ├── routes/
+│   │   │   ├── ingest.py        # POST /ingest endpoint
+│   │   │   └── query.py         # GET /query endpoint (streaming)
+│   │   └── services/
+│   │       ├── transcript.py    # YouTube transcript fetching
+│   │       ├── embeddings.py    # Ollama embeddings
+│   │       ├── retriever.py     # FAISS vector store
+│   │       └── llm.py           # LLM utilities
+│   ├── vectorstore/             # Persisted FAISS index
+│   └── .env                     # Environment configuration
+├── frontend/
+│   └── streamlit_app.py         # Streamlit UI
+├── requirements.txt             # Python dependencies
+└── README.md                    # This file
+```
 
-⚠️ This may take a few minutes (models download once).
+## Configuration
 
-🧩 5️⃣ Check the .env file
+Edit `backend/.env` to customize:
 
-In the backend folder, there’s a file named .env.
-It already has all required settings.
-
-Make sure it looks like this:
-
-VECTORSTORE_DIR=./vectorstore
-
-OLLAMA_MODEL=phi3
-EMBED_MODEL=nomic-embed-text
+```bash
+# Ollama connection
 OLLAMA_HOST=http://127.0.0.1:11434
 
-BACKEND_HOST=127.0.0.1
-BACKEND_PORT=8000
+# Models to use
+OLLAMA_MODEL=llama3              # Chat model
+EMBED_MODEL=nomic-embed-text     # Embedding model
 
+# Vector store location
+VECTORSTORE_DIR=./vectorstore
 
-🔁 If you want to use another model (like llama3), just change this line:
+# Retrieval settings
+TOP_K=3                          # Number of chunks to retrieve
+CHUNK_SIZE=1000                  # Characters per chunk
+CHUNK_OVERLAP=200                # Character overlap between chunks
+```
 
-OLLAMA_MODEL=llama3
+## Performance Tips
 
+- **Faster responses**: Use `phi` instead of `llama3` (much smaller model)
+  ```bash
+  ollama pull phi
+  # Update OLLAMA_MODEL=phi in .env
+  ```
+- **Better quality**: Stick with `llama3` for detailed answers
+- **Embedding speed**: `nomic-embed-text` is optimized for speed
 
-and make sure to pull it using ollama pull llama3.
+## Troubleshooting
 
-🧩 6️⃣ Run the backend
+**"No transcript available"**
+- Video may be age-restricted, geo-blocked, or private
+- Try a different video
 
-From the project root folder (RagTube):
+**"Connection refused" (Ollama)**
+- Make sure Ollama is running: `ollama serve`
+- Check `OLLAMA_HOST` in `.env`
 
-uvicorn backend.app.main:app --reload
+**Slow query responses**
+- Switch to a faster model (`phi`)
+- Reduce `TOP_K` in `.env` (fewer chunks = faster search)
+- Ensure Ollama models are cached locally
 
+**"FAISS index not found"**
+- Run ingest on at least one video first
+- Check `VECTORSTORE_DIR` path
 
-If everything is okay, you’ll see:
+## Future Enhancements
 
-INFO:     Uvicorn running on http://127.0.0.1:8000
+- [ ] Chunk preview & highlight
+- [ ] Model selector in UI
+- [ ] Caching for repeated queries
+- [ ] Direct transcript upload
+- [ ] Multi-user support
+- [ ] Docker deployment
 
-🧩 7️⃣ Open the API Docs
+## License
 
-Go to your browser and open:
-👉 http://127.0.0.1:8000/docs
+See [LICENSE](LICENSE) file.
 
-This page shows all available endpoints:
+## Author
 
-/ingest — to load a YouTube video transcript
-
-/query — to ask questions about the video
-
-🧩 8️⃣ Try it out!
-🔹 Step 1 — Ingest a video
-
-Click on /ingest
-
-Click “Try it out”
-
-Paste any YouTube link (with English subtitles)
-
-Click Execute
-
-Wait a few seconds ⏳
-You’ll get something like:
-
-{
-  "video_url": "...",
-  "status": "ingested",
-  "chunks": 63
-}
-
-
-A folder named vectorstore will appear automatically — it stores your embeddings.
-
-🔹 Step 2 — Ask a question
-
-Click on /query
-
-Click “Try it out”
-
-In the question box, type something like:
-
-What is this video about?
-
-
-Click Execute
-
-After a few seconds, you’ll see a meaningful answer from the local LLM 🎯
-
-✅ Done!
-
-You’ve now successfully:
-
-Loaded a video
-
-Built its embeddings
-
-Queried it using RAG and a local model (no internet needed!)
-
-🧠 Optional
-
-If you want to stop the server:
-
-Ctrl + C
-
-
-If you want to change model:
-
-Edit .env → OLLAMA_MODEL=llama3 (or any other model)
-
-Pull the model using ollama pull llama3
-
-Restart the backend.
-
-----------------------------------------------------------------------
-
-
-
-🏁 Future Scope
-Add frontend chat interface
-
-Multi-video ingestion
-
-Video summarization endpoint
-
-Cloud LLM integration for faster inference
-
-🪄 Example Workflow
-1️⃣ Run backend
-2️⃣ In /docs, call /ingest with a YouTube URL
-3️⃣ Once status = ingested, call /query with a question
-4️⃣ Get the AI-generated answer! 🎯
-
-
-
----
-
-## ✅ Next Step for You
-1. Copy this full markdown text  
-2. Open your repo’s `README.md` in VS Code or Notepad  
-3. Replace everything inside it with this content  
-4. Save the file  
-5. Push it to GitHub:
-   ```bash
-   git add README.md
-   git commit -m "Updated README with setup guide and model switch instructions"
-   git push origin main
+Created by 
+[kartikeyaswarup-m1](https://github.com/kartikeyaswarup-m1)
+[KAJAL-1307](https://github.com/KAJAL-1307)
