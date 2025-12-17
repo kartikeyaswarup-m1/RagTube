@@ -112,6 +112,13 @@ Returns:
   "video_id": "dQw4w9WgXcQ"
 }
 ```
+## Paste Video Link
+
+<img width="691" height="437" alt="Screenshot 2025-12-17 at 12 11 26 PM" src="https://github.com/user-attachments/assets/7c6d2e23-e143-47ee-a56c-6ad02c71c132" />
+
+## Ask Questions 
+
+<img width="691" height="451" alt="Screenshot 2025-12-17 at 12 12 56 PM" src="https://github.com/user-attachments/assets/dce0fca9-9453-4682-ab4f-ca2b08a86a8a" />
 
 ### Query
 ```
