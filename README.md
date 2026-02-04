@@ -8,8 +8,7 @@ Ask questions about YouTube videos using local Retrieval-Augmented Generation (R
 - **YouTube Integration** – Automatically fetch and process YouTube transcripts.
 - **Vector Search** – FAISS-based semantic search for relevant content.
 - **Streaming Responses** – Real-time LLM output as answers stream in.
-- **Chat History** – Previous queries stored in sidebar for quick reference.
-- **Minimalist UI** – Clean, dark-themed interface with Streamlit.
+- **Polished UI** – Modern React + Vite interface for deployment.
 
 ## Architecture
 
@@ -82,21 +81,26 @@ uvicorn backend.app.main:app --reload
 
 Backend runs on `http://127.0.0.1:8000`
 
-### Run Frontend (Streamlit)
+### Run Frontend (React + Vite)
 
 ```bash
-streamlit run frontend/streamlit_app.py
+cd frontend
+npm install
+npm run dev
 ```
 
-Frontend runs on `http://localhost:8501`
+Frontend runs on `http://localhost:5173`
+
+If your backend is not on the default URL, create `frontend/.env` using
+`frontend/.env.example` and set `VITE_API_BASE`.
 
 ### Quick Start
 
-1. Open Streamlit UI in browser
-2. Paste a YouTube URL in the "Load Video" section
-3. Click "Load" to ingest and process the video
-4. Type a question in the "Question" field
-5. Click "Send" to stream the answer
+1. Open the React UI in your browser
+2. Paste a YouTube URL in the "Ingest a video" section
+3. Click "Ingest video" to process the transcript
+4. Type a question in the "Ask a question" section
+5. Click "Ask" to stream the answer
 
 ## API Endpoints
 
@@ -151,7 +155,10 @@ ragtube/
 │   ├── vectorstore/             # Persisted FAISS index
 │   └── .env                     # Environment configuration
 ├── frontend/
-│   └── streamlit_app.py         # Streamlit UI
+│   ├── src/                     # React app
+│   ├── index.html               # Vite entry
+│   ├── vite.config.js           # Vite config
+│   └── package.json             # Frontend dependencies
 ├── requirements.txt             # Python dependencies
 └── README.md                    # This file
 ```
@@ -175,6 +182,9 @@ VECTORSTORE_DIR=./vectorstore
 TOP_K=3                          # Number of chunks to retrieve
 CHUNK_SIZE=1000                  # Characters per chunk
 CHUNK_OVERLAP=200                # Character overlap between chunks
+
+# Frontend CORS (comma-separated)
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```
 
 ## Performance Tips
