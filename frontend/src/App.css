@@ -1,0 +1,217 @@
+/* ── Reset & base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #0f0f0f;
+  color: #e8e8e8;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── App layout ────────────────────────────────────────────────────────────── */
+.app { display: flex; flex-direction: column; height: 100vh; }
+
+.app-header {
+  padding: 14px 28px;
+  background: #161616;
+  border-bottom: 1px solid #2a2a2a;
+  display: flex; align-items: baseline; gap: 12px;
+}
+.app-header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+.app-header h1 span { color: #ff4444; }
+.app-header p { font-size: 0.82rem; color: #666; }
+
+.app-main {
+  display: grid;
+  grid-template-columns: 480px 1fr;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Left panel ────────────────────────────────────────────────────────────── */
+.left-panel {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px;
+  border-right: 1px solid #2a2a2a;
+  overflow-y: auto;
+  background: #111;
+}
+
+/* ── URL input ─────────────────────────────────────────────────────────────── */
+.url-form { display: flex; gap: 8px; }
+
+.url-input {
+  flex: 1;
+  padding: 10px 14px;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #e8e8e8;
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.url-input:focus { border-color: #ff4444; }
+
+.load-btn {
+  padding: 10px 18px;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.load-btn:hover:not(:disabled) { background: #e03333; }
+.load-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── YouTube player ─────────────────────────────────────────────────────────── */
+.player-wrapper {
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+}
+.yt-player { width: 100%; aspect-ratio: 16/9; }
+
+/* ── Right panel / ChatBox ──────────────────────────────────────────────────── */
+.right-panel {
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+.empty-state {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  color: #444; font-size: 0.9rem;
+}
+
+.chatbox { display: flex; flex-direction: column; height: 100%; }
+
+/* ── Messages ───────────────────────────────────────────────────────────────── */
+.messages {
+  flex: 1; overflow-y: auto;
+  padding: 20px 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+.chat-empty { color: #444; font-size: 0.9rem; text-align: center; margin-top: 40px; }
+
+.message { display: flex; }
+.message.user { justify-content: flex-end; }
+.message.ai   { justify-content: flex-start; }
+
+.bubble {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.message.user .bubble { background: #ff4444; color: white; border-bottom-right-radius: 4px; }
+.message.ai   .bubble { background: #1e1e1e; color: #e8e8e8; border-bottom-left-radius: 4px; }
+
+/* ── Timestamps ─────────────────────────────────────────────────────────────── */
+.timestamp-link {
+  display: inline-block;
+  background: #2a2a2a;
+  color: #ff6b6b;
+  border-radius: 4px;
+  padding: 1px 7px;
+  margin: 0 2px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.timestamp-link:hover { background: #ff4444; color: white; }
+
+/* ── Rewritten query ────────────────────────────────────────────────────────── */
+.rewritten-query { font-size: 0.78rem; color: #666; margin-bottom: 8px; }
+
+/* ── Sources ────────────────────────────────────────────────────────────────── */
+.sources { margin-top: 10px; border-top: 1px solid #2a2a2a; padding-top: 8px; }
+
+.sources-toggle {
+  background: none; border: none; color: #666; font-size: 0.8rem;
+  cursor: pointer; padding: 2px 0;
+}
+.sources-toggle:hover { color: #aaa; }
+
+.source-item {
+  background: #161616; border-radius: 8px;
+  padding: 10px; margin-top: 8px;
+}
+.source-header {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.8rem; margin-bottom: 6px;
+}
+.source-score { color: #666; }
+.source-timestamp {
+  background: #2a2a2a; border: none; color: #ff6b6b;
+  border-radius: 4px; padding: 2px 8px;
+  font-size: 0.78rem; cursor: pointer; font-weight: 600;
+}
+.source-timestamp:hover { background: #ff4444; color: white; }
+.source-text { font-size: 0.8rem; color: #888; line-height: 1.5; }
+
+/* ── Loading dots ───────────────────────────────────────────────────────────── */
+.loading-bubble { display: flex; gap: 5px; align-items: center; padding: 14px 18px; }
+.dot {
+  width: 7px; height: 7px; background: #555; border-radius: 50%;
+  animation: bounce 1.2s infinite;
+}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.4; }
+  40%            { transform: scale(1.2); opacity: 1; }
+}
+
+/* ── Chat input ─────────────────────────────────────────────────────────────── */
+.chat-input-area {
+  padding: 12px 16px;
+  border-top: 1px solid #2a2a2a;
+  background: #111;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.chat-form { display: flex; gap: 8px; }
+
+.chat-input {
+  flex: 1; padding: 10px 14px;
+  background: #1e1e1e; border: 1px solid #333;
+  border-radius: 8px; color: #e8e8e8;
+  font-size: 0.88rem; outline: none;
+  transition: border-color 0.2s;
+}
+.chat-input:focus { border-color: #ff4444; }
+
+.ask-btn {
+  padding: 10px 20px; background: #ff4444; color: white;
+  border: none; border-radius: 8px; font-weight: 600;
+  font-size: 0.88rem; cursor: pointer; transition: background 0.2s;
+}
+.ask-btn:hover:not(:disabled) { background: #e03333; }
+.ask-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.clear-btn {
+  background: none; border: none; color: #555;
+  font-size: 0.78rem; cursor: pointer; align-self: flex-start;
+  padding: 2px 0;
+}
+.clear-btn:hover { color: #aaa; }
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+/* ── Bullet lines in answers ────────────────────────────────────────────────── */
+.bullet-line {
+  display: flex; gap: 8px;
+  margin: 4px 0;
+  line-height: 1.6;
+}
+.answer-text p { margin: 4px 0; line-height: 1.6; }
