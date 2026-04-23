@@ -9,6 +9,9 @@ from langchain_core.documents import Document
 from urllib.parse import urlparse, parse_qs
 import time, json, os, re
 
+from dotenv import load_dotenv
+load_dotenv()
+
 CACHE_FILE = "rag_cache.json"
 
 vector_store  = None
