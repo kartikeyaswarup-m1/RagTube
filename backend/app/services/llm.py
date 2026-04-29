@@ -23,6 +23,9 @@ def _stream_ollama(prompt: str, model: str | None = None) -> Iterator[str]:
         "model": model or OLLAMA_MODEL,
         "prompt": prompt,
         "stream": True,
+        "temperature": 0.4,  # Lower temp for more focused, accurate answers
+        "top_p": 0.85,  # Control diversity without being too restrictive
+        "top_k": 40,  # Limit token pool for consistency
     }
 
     response = requests.post(url, json=payload, stream=True, timeout=120)

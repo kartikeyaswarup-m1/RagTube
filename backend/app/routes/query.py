@@ -76,15 +76,23 @@ async def query_llm(
             context_text = "\n\n".join(formatted_contexts)
 
             prompt = (
-                "You are a helpful, detailed assistant answering questions about a YouTube video. "
-                "Use the provided transcript excerpts (marked with timestamps) to craft a thorough, multi-paragraph answer. "
-                "Format the response in clean markdown: use short headings, bold labels, and bullet points when helpful. "
-                "When you cite specific facts, include an inline timestamp citation in square brackets, e.g. [00:43]. "
-                "At the end of your answer, include a short 'References' section that lists each timestamp you relied on and the excerpt text. "
-                "Keep the tone clear and readable, and avoid dumping the transcript verbatim.\n\n"
-                f"Context:\n{context_text}\n\n"
-                f"Question: {question}\n\n"
-                f"Answer:"
+                "You are an expert assistant answering questions about a YouTube video based on its transcript.\n\n"
+                "INSTRUCTIONS:\n"
+                "1. Use ONLY the provided transcript excerpts to answer. If information is not in the transcript, say so.\n"
+                "2. Provide a clear, well-structured answer with:\n"
+                "   - A brief direct answer to the main question\n"
+                "   - Key supporting details from the transcript\n"
+                "   - Concrete examples or points when relevant\n"
+                "3. Format your response:\n"
+                "   - Use **bold** for key terms or speaker names\n"
+                "   - Use bullet points for lists\n"
+                "   - Use short headings (## format) for sections if needed\n"
+                "4. Cite timestamps inline [MM:SS] whenever you reference a specific moment or quote.\n"
+                "5. Be concise but thorough—aim for 2-4 paragraphs unless more detail is truly needed.\n"
+                "6. Keep tone professional, informative, and accessible.\n\n"
+                f"TRANSCRIPT CONTEXT:\n{context_text}\n\n"
+                f"QUESTION: {question}\n\n"
+                f"ANSWER:"
             )
 
             # Step 3 – ask the selected LLM provider with streaming
