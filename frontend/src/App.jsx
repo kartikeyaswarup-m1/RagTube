@@ -278,6 +278,10 @@ export default function App() {
     saveChatMessage({ role: "user", content: q });
     setQuestion("");
 
+    // Add empty assistant placeholder immediately
+    const assistantIndex = messages.length + 1; // Index where assistant message will be
+    saveChatMessage({ role: "assistant", content: "" });
+
     try {
       const url = `${apiBase}/query?question=${encodeURIComponent(q)}&provider=${encodeURIComponent(provider)}`;
       const response = await fetch(url, {
@@ -313,7 +317,7 @@ export default function App() {
               if (payload.text) {
                 finalAnswer += payload.text;
                 await streamingDelay(28);
-                // Update the last message (assistant response) in a paced, readable stream
+                // Update the assistant message in real-time
                 setMessages((prev) => {
                   const updated = [...prev];
                   if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
@@ -334,15 +338,16 @@ export default function App() {
           newlineIndex = buffer.indexOf("\n");
         }
       }
-
-      // Save the final assistant message
-      if (finalAnswer.trim()) {
-        saveChatMessage({ role: "assistant", content: finalAnswer });
-      }
     } catch (err) {
       setError(err?.message || "Failed to query the model.");
-      // Add error message to chat
-      saveChatMessage({ role: "error", content: err?.message || "Failed to query the model." });
+      // Remove the empty placeholder and add error message
+      setMessages((prev) => {
+        const updated = [...prev];
+        if (updated.length > 0 && updated[updated.length - 1].role === "assistant" && !updated[updated.length - 1].content) {
+          updated[updated.length - 1] = { role: "error", content: err?.message || "Failed to query the model." };
+        }
+        return updated;
+      });
     } finally {
       setQueryBusy(false);
     }
@@ -464,14 +469,16 @@ export default function App() {
 
               <div className="chat-messages">
                 {messages.length === 0 ? (
-                  <p className="muted">Ingest a video and start asking questions!</p>
+                  <p className="empty-chat-placeholder">Ingest a video and start asking questions!</p>
                 ) : (
                   messages.map((msg, idx) => (
-                    <div key={idx} className={`chat-message chat-${msg.role}`}>
-                          <div className={`message-content ${msg.role === "assistant" ? "rich-message" : ""}`}>
-                        {msg.role === "user" && <div className="message-label">You</div>}
-                        {msg.role === "assistant" ? renderRichMessage(msg.content) : msg.content}
-                          </div>
+                    <div key={idx} className={`chat-message chat-${msg.role} ${msg.role === "assistant" && !msg.content ? "streaming" : ""}`}>
+                      {msg.role === "user" && <div className="message-label">You</div>}
+                      {msg.role === "error" && <div className="message-label">Error</div>}
+                      <div className={`message-content ${msg.role === "assistant" ? "rich-message" : ""}`}>
+                        {msg.role === "assistant" && !msg.content && <div className="streaming-indicator"><span></span><span></span><span></span></div>}
+                        {msg.role === "assistant" && msg.content ? renderRichMessage(msg.content) : (msg.role === "user" || msg.role === "error") && msg.content}
+                      </div>
                     </div>
                   ))
                 )}
