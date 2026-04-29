@@ -18,12 +18,14 @@ def save_vectorstore(texts: list[str]):
     """
     if not texts:
         raise ValueError("No texts provided to save_vectorstore.")
-    embeddings = [get_embedding(t) for t in texts]
+    # texts may be a list of strings or a list of dicts with a 'text' key.
+    embeddings = [get_embedding(t["text"] if isinstance(t, dict) else t) for t in texts]
     dim = len(embeddings[0])
 
     index = faiss.IndexFlatL2(dim)
     index.add(np.array(embeddings, dtype="float32"))
 
+    # persist the original items (strings or dicts) so we can return metadata later
     with open(MAPPING_FILE, "wb") as f:
         pickle.dump(texts, f)
 
@@ -43,4 +45,8 @@ def query_vectorstore(query: str, top_k: int = 3):
     query_vec = np.array([get_embedding(query)], dtype="float32")
     distances, indices = index.search(query_vec, top_k)
 
-    return [texts[i] for i in indices[0] if 0 <= i < len(texts)]
+    results = []
+    for i in indices[0]:
+        if 0 <= i < len(texts):
+            results.append(texts[i])
+    return results

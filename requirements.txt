@@ -56,3 +56,4 @@ websockets==15.0.1
 yarl==1.20.1
 youtube-transcript-api==1.2.2
 zstandard==0.24.0
+groq==0.31.0

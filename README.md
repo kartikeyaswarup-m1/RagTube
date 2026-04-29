@@ -1,10 +1,10 @@
 # RagTube
 
-Ask questions about YouTube videos using local Retrieval-Augmented Generation (RAG) powered by Ollama.
+Ask questions about YouTube videos using Retrieval-Augmented Generation (RAG) powered by either local Ollama or Groq.
 
 ## Features
 
-- **Local Processing** – No API keys needed. Everything runs on your machine.
+- **Local or Cloud LLMs** – Use Ollama locally or switch to Groq with an API key.
 - **YouTube Integration** – Automatically fetch and process YouTube transcripts.
 - **Vector Search** – FAISS-based semantic search for relevant content.
 - **Streaming Responses** – Real-time LLM output as answers stream in.
@@ -31,8 +31,9 @@ Streamed Answer
 ## Prerequisites
 
 1. **Python 3.10+**
-2. **Ollama** – Download from [ollama.ai](https://ollama.ai)
-3. **Required Models** (pull via Ollama):
+2. **Ollama** – Download from [ollama.ai](https://ollama.ai) for local models
+3. **Groq API key** – Needed only if you want Groq-backed responses
+4. **Required Models** (pull via Ollama):
    ```bash
    ollama pull llama3
    ollama pull nomic-embed-text
@@ -61,6 +62,9 @@ Streamed Answer
    ```bash
    OLLAMA_HOST=http://127.0.0.1:11434
    OLLAMA_MODEL=llama3
+    LLM_PROVIDER=ollama
+    GROQ_API_KEY=your_groq_api_key
+    GROQ_MODEL=llama-3.1-8b-instant
    EMBED_MODEL=nomic-embed-text
    VECTORSTORE_DIR=./vectorstore
    ```
@@ -72,6 +76,10 @@ Streamed Answer
 ```bash
 ollama serve
 ```
+
+### Groq setup
+
+If you want Groq responses, set `GROQ_API_KEY` in `backend/.env`. The query panel lets you switch between `Ollama (local)` and `Groq API` per question.
 
 ### Run Backend (FastAPI)
 
@@ -206,6 +214,10 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 **"Connection refused" (Ollama)**
 - Make sure Ollama is running: `ollama serve`
 - Check `OLLAMA_HOST` in `.env`
+
+**Groq API errors**
+- Make sure `GROQ_API_KEY` is set in `backend/.env`
+- Confirm the selected `GROQ_MODEL` is available in your Groq account
 
 **Slow query responses**
 - Switch to a faster model (`phi`)
