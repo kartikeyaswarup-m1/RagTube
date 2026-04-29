@@ -8,10 +8,11 @@ load_dotenv(BASE_DIR / ".env")
 
 VECTORSTORE_DIR = Path(os.getenv("VECTORSTORE_DIR", BASE_DIR / "vectorstore"))
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "<REDACTED_GROQ_API_KEY>").strip()
 
 # Ensure vectorstore dir exists
 VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,8 +1,6 @@
-import os
 import requests
 
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")  # ollama pull nomic-embed-text
+from backend.app.config import EMBED_MODEL, OLLAMA_HOST
 
 def get_embedding(text: str):
     """
@@ -16,9 +14,9 @@ def get_embedding(text: str):
     }
 
     try:
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, timeout=60)
         response.raise_for_status()
         data = response.json()
         return data.get("embedding", [])
     except Exception as e:
-        raise RuntimeError(f"Error generating embeddings: {e}")
+            raise RuntimeError(f"Error generating embeddings from {OLLAMA_HOST} using {EMBED_MODEL}: {e}")

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-const DEFAULT_API = "http://127.0.0.1:8001";
+const DEFAULT_API = "http://127.0.0.1:8000";
 
 export default function App() {
   const apiBase = useMemo(
