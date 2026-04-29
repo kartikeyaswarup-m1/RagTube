@@ -28,8 +28,7 @@ export default function App() {
   const canAsk = question.trim().length > 0 && !queryBusy;
 
   const saveChatMessage = (newMessage) => {
-    const updated = [...messages, newMessage];
-    setMessages(updated);
+    setMessages((prev) => [...prev, newMessage]);
   };
 
   const streamingDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -279,7 +278,6 @@ export default function App() {
     setQuestion("");
 
     // Add empty assistant placeholder immediately
-    const assistantIndex = messages.length + 1; // Index where assistant message will be
     saveChatMessage({ role: "assistant", content: "" });
 
     try {
