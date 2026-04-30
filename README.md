@@ -1,5 +1,112 @@
 # RagTube
 
+RagTube is a local Retrieval-Augmented Generation (RAG) system for asking questions about YouTube videos.  
+It ingests a YouTube transcript, chunks and embeds the text, persists a FAISS vector store, and answers queries using a local or cloud LLM (Ollama or Groq).
+
+## Quickstart
+
+1. Create and activate a Python virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Configure environment variables in `backend/.env` (see example below).
+
+4. Run the backend:
+```bash
+uvicorn backend.app.main:app --reload
+```
+
+5. Ingest a video (replace `VIDEO_ID`):
+```bash
+curl "http://127.0.0.1:8000/ingest?video_url=https://www.youtube.com/watch?v=VIDEO_ID"
+```
+
+6. Query (streaming NDJSON):
+```bash
+curl -N "http://127.0.0.1:8000/query?question=What+is+the+main+point%3F&provider=ollama"
+```
+
+## Example `.env`
+```
+VECTORSTORE_DIR=./vectorstore
+OLLAMA_HOST=http://127.0.0.1:11434
+OLLAMA_MODEL=llama3
+EMBED_MODEL=nomic-embed-text
+LLM_PROVIDER=ollama
+GROQ_MODEL=llama-3.1-8b-instant
+GROQ_API_KEY=your_real_groq_api_key_here
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+```
+
+> Important: remove any placeholder API keys from code and set `GROQ_API_KEY` in your environment if you plan to use Groq.
+
+## How it works (high level)
+
+- Ingest:
+  - Endpoint: `GET /ingest?video_url=...`
+  - Uses `yt_dlp` to fetch captions/automatic captions, parses VTT/JSON cues into timestamped segments, chunks text into ~1000-character chunks (with overlap), generates embeddings, and saves a FAISS index plus a mapping of original chunks.
+
+- Vector store:
+  - FAISS index is persisted to `VECTORSTORE_DIR/faiss.index`.
+  - Original chunk objects are pickled to `VECTORSTORE_DIR/mapping.pkl`.
+
+- Query:
+  - Endpoint: `GET /query?question=...&provider=ollama|groq`
+  - Retrieves nearest transcript chunks with `query_vectorstore`, builds a prompt containing only those excerpts (with timestamps), and streams LLM output as NDJSON (one JSON object per line).
+  - Streamed line keys: `text` (partial output), `done` (final marker), `error` (on failure).
+
+## Key files
+- App entry: backend/app/main.py  
+- Config / env: backend/app/config.py  
+- Ingest route: backend/app/routes/ingest.py  
+- Query route: backend/app/routes/query.py  
+- Transcript parsing & chunking: backend/app/services/transcript.py  
+- Embeddings: backend/app/services/embeddings.py  
+- Vector store & retrieval: backend/app/services/retriever.py  
+- LLM providers (Ollama / Groq): backend/app/services/llm.py
+
+## Providers: Ollama vs Groq
+
+- Ollama
+  - Runs locally; used for embeddings and/or generation when configured.
+  - Endpoints used:
+    - Embeddings: `{OLLAMA_HOST}/api/embeddings`
+    - Generation (streaming): `{OLLAMA_HOST}/api/generate`
+  - Ensure Ollama daemon is running and required models are pulled locally.
+
+- Groq
+  - Uses the Groq cloud API via the `groq` Python SDK; requires `GROQ_API_KEY` and `GROQ_MODEL`.
+  - Select provider globally via `LLM_PROVIDER` or per-request with the `provider` query parameter.
+
+## Notes & recommendations
+
+- After successful ingest, confirm `faiss.index` and `mapping.pkl` exist in `VECTORSTORE_DIR`.
+- The code stores timestamped chunk dicts (`{"text","start","end"}`) so answers can cite timestamps.
+- Consider:
+  - Batching embedding requests to reduce HTTP overhead during ingest.
+  - Validating embedding dimensionality before creating a FAISS index.
+  - Replacing pickled mapping with a small JSON/NDJSON format for safer compatibility.
+  - Removing any hard-coded or placeholder secrets from `backend/app/config.py`.
+
+## Troubleshooting
+
+- If `/query` reports "Vectorstore not built yet", run an ingest first.
+- If embeddings fail, verify `OLLAMA_HOST`, `EMBED_MODEL`, and that Ollama is reachable.
+- If Groq streaming fails, verify `GROQ_API_KEY` and that the `groq` SDK is installed.
+
+## Next steps I can help with
+- Create `backend/.env.example`.
+- Implement embedding batching and dim checks in `backend/app/services/retriever.py`.
+- Add a short client example to consume NDJSON streaming responses.
+# RagTube
+
 Ask questions about YouTube videos using Retrieval-Augmented Generation (RAG) powered by either local Ollama or Groq.
 
 ## Features
