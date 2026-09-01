@@ -17,7 +17,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [videoDetails, setVideoDetails] = useState(null);
   const [activeTimestamp, setActiveTimestamp] = useState(0);
-  const [provider, setProvider] = useState("ollama");
+  const [provider, setProvider] = useState("groq");
 
   // Chat conversation messages
   const [messages, setMessages] = useState(() => {
@@ -355,7 +355,7 @@ export default function App() {
     <div className="page">
       <header className="hero">
         <div>
-          <p className="eyebrow">Local RAG • Ollama • YouTube</p>
+          <p className="eyebrow">Local RAG • Groq • YouTube</p>
           <h1>RagTube</h1>
           <p className="subtitle">
             Turn any YouTube transcript into a searchable knowledge base and get
@@ -493,7 +493,6 @@ export default function App() {
                     onChange={(event) => setProvider(event.target.value)}
                     disabled={!videoDetails}
                   >
-                    <option value="ollama">Ollama (local)</option>
                     <option value="groq">Groq API</option>
                   </select>
                 </div>
@@ -529,7 +528,7 @@ export default function App() {
 
       <footer className="footer">
         <span>Built for local, private RAG workflows.</span>
-        <span>Powered by FastAPI + Ollama.</span>
+        <span>Powered by FastAPI + Groq.</span>
       </footer>
     </div>
   );

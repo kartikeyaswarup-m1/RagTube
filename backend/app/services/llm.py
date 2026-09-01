@@ -8,53 +8,16 @@ from backend.app.config import (
     GROQ_API_KEY,
     GROQ_MODEL,
     LLM_PROVIDER,
-    OLLAMA_HOST,
-    OLLAMA_MODEL,
     HF_API_TOKEN,
     HF_MODEL,
 )
 
 
 def _normalize_provider(provider: str | None) -> str:
-    return (provider or LLM_PROVIDER or "ollama").strip().lower()
+    return (provider or LLM_PROVIDER or "groq").strip().lower()
 
 
-def _stream_ollama(prompt: str, model: str | None = None) -> Iterator[str]:
-    url = f"{OLLAMA_HOST}/api/generate"
-    payload = {
-        "model": model or OLLAMA_MODEL,
-        "prompt": prompt,
-        "stream": True,
-        "temperature": 0.4,  # Lower temp for more focused, accurate answers
-        "top_p": 0.85,  # Control diversity without being too restrictive
-        "top_k": 40,  # Limit token pool for consistency
-    }
-
-    response = requests.post(url, json=payload, stream=True, timeout=120)
-    response.raise_for_status()
-
-    for line in response.iter_lines(decode_unicode=True):
-        if not line:
-            continue
-
-        # Ensure line is a string (sometimes iter_lines returns bytes)
-        if isinstance(line, bytes):
-            line = line.decode("utf-8")
-
-        if line.startswith("data: "):
-            line = line.removeprefix("data: ").strip()
-
-        if not line:
-            continue
-
-        try:
-            payload = json.loads(line)
-        except Exception:
-            continue
-
-        chunk = payload.get("response", "")
-        if chunk:
-            yield chunk
+# Ollama support removed. Groq remains the primary streaming provider.
 
 
 def _stream_groq(prompt: str, model: str | None = None) -> Iterator[str]:
@@ -135,7 +98,7 @@ def generate_response(prompt: str, provider: str | None = None, model: str | Non
 
 def stream_response(prompt: str, provider: str | None = None, model: str | None = None) -> Iterator[str]:
     """
-    Stream text chunks from Ollama or Groq.
+    Stream text chunks from Groq or Hugging Face.
     """
     selected_provider = _normalize_provider(provider)
 
@@ -146,8 +109,4 @@ def stream_response(prompt: str, provider: str | None = None, model: str | None 
     if selected_provider == "hf":
         yield from _stream_hf(prompt, model=model)
         return
-
-    if selected_provider != "ollama":
-        raise ValueError(f"Unsupported provider: {selected_provider}")
-
-    yield from _stream_ollama(prompt, model=model)
+    raise ValueError(f"Unsupported provider: {selected_provider}")

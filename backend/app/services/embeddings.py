@@ -1,8 +1,6 @@
 import requests
 
 from backend.app.config import (
-    EMBED_MODEL,
-    OLLAMA_HOST,
     HF_API_TOKEN,
     HF_EMBED_MODEL,
     EMBED_PROVIDER,
@@ -15,7 +13,7 @@ def get_embedding(text: str):
     Generate embeddings for text using Ollama or Hugging Face.
     Prefers provider specified by `EMBED_PROVIDER`; falls back to `LLM_PROVIDER`.
     """
-    provider = (EMBED_PROVIDER or LLM_PROVIDER or "ollama").strip().lower()
+    provider = (EMBED_PROVIDER or LLM_PROVIDER or "hf").strip().lower()
 
     if provider == "hf":
         if not HF_API_TOKEN:
@@ -47,17 +45,4 @@ def get_embedding(text: str):
         except Exception as e:
             raise RuntimeError(f"Error generating embeddings from Hugging Face: {e}")
 
-    # Default: Ollama
-    url = f"{OLLAMA_HOST}/api/embeddings"
-    payload = {
-        "model": EMBED_MODEL,
-        "input": text,
-    }
-
-    try:
-        response = requests.post(url, json=payload, timeout=60)
-        response.raise_for_status()
-        data = response.json()
-        return data.get("embedding", [])
-    except Exception as e:
-        raise RuntimeError(f"Error generating embeddings from {OLLAMA_HOST} using {EMBED_MODEL}: {e}")
+    raise RuntimeError(f"No supported embedding provider configured. Set EMBED_PROVIDER=hf or provide HF_API_TOKEN.")

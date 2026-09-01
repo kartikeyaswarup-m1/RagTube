@@ -34,7 +34,7 @@ router = APIRouter()
 @router.get("")
 async def query_llm(
     question: str = Query(..., description="Your question"),
-    provider: str = Query("ollama", description="LLM provider: ollama or groq"),
+    provider: str = Query("groq", description="LLM provider: groq or hf"),
 ):
     """Stream LLM output as newline-delimited JSON (NDJSON).
 
