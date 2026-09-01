@@ -2,6 +2,8 @@ import asyncio
 from fastapi import APIRouter, Query
 from backend.app.services.transcript import fetch_transcript_data, chunk_text
 from backend.app.services.retriever import save_vectorstore
+from backend.app.config import VECTORSTORE_DIR
+import pickle
 
 router = APIRouter()
 
@@ -57,6 +59,15 @@ async def ingest_video(video_url: str = Query(..., description="YouTube video UR
         # response but include a `warning` so callers can surface guidance.
         err_str = str(e)
         if "No supported embedding provider" in err_str or "HF_API_TOKEN" in err_str or "EMBED_PROVIDER" in err_str:
+            # Persist mapping.pkl so queries can still use transcript segments
+            mapping_file = VECTORSTORE_DIR / "mapping.pkl"
+            try:
+                with open(mapping_file, "wb") as f:
+                    pickle.dump(chunks, f)
+            except Exception:
+                # non-fatal: if mapping cannot be written, still return transcript
+                pass
+
             return {
                 "video_url": video_url,
                 "status": "ingested",
