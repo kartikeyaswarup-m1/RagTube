@@ -61,11 +61,28 @@ async def ingest_video(video_url: str = Query(..., description="YouTube video UR
         if "No supported embedding provider" in err_str or "HF_API_TOKEN" in err_str or "EMBED_PROVIDER" in err_str:
             # Persist mapping.pkl so queries can still use transcript segments
             mapping_file = VECTORSTORE_DIR / "mapping.pkl"
+            transcript_file = None
             try:
+                if transcript_data.get("video_id"):
+                    transcript_file = VECTORSTORE_DIR / f"transcript_{transcript_data.get('video_id')}.json"
+
                 with open(mapping_file, "wb") as f:
                     pickle.dump(chunks, f)
+
+                if transcript_file:
+                    # persist transcript and segments for reliable fallback
+                    with open(transcript_file, "w", encoding="utf-8") as tf:
+                        import json as _json
+
+                        _json.dump({
+                            "transcript": transcript,
+                            "segments": transcript_data.get("segments", []),
+                            "video_id": transcript_data.get("video_id"),
+                            "title": transcript_data.get("title"),
+                            "thumbnail": transcript_data.get("thumbnail"),
+                        }, tf)
             except Exception:
-                # non-fatal: if mapping cannot be written, still return transcript
+                # non-fatal: if mapping/transcript cannot be written, still return transcript
                 pass
 
             return {
