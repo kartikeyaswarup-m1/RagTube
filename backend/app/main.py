@@ -2,6 +2,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.routes import ingest, query
+from backend.app.routes import diagnostics
 
 app = FastAPI(title="RagTube Backend")
 
@@ -21,6 +22,7 @@ app.add_middleware(
 
 app.include_router(ingest.router, prefix="/ingest", tags=["ingest"])
 app.include_router(query.router,  prefix="/query",  tags=["query"])
+app.include_router(diagnostics.router, prefix="/diagnostics", tags=["diagnostics"])
 
 @app.get("/")
 def root():
