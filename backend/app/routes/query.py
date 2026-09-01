@@ -29,6 +29,7 @@ from backend.app.services.retriever import query_vectorstore
 from backend.app.services.llm import stream_response
 from backend.app.config import VECTORSTORE_DIR
 import pickle
+from backend.app.services.transcript import fetch_transcript_data, chunk_text
 
 router = APIRouter()
 
@@ -71,8 +72,23 @@ async def query_llm(
                     # take top-k segments as fallback
                     contexts = loaded[:4]
                 else:
-                    # re-raise original error to be handled by outer except
-                    raise
+                    # If no mapping is present, attempt to fetch transcript live
+                    # from YouTube using the provided `video_id` and chunk it.
+                    if video_id:
+                        try:
+                            video_url = f"https://www.youtube.com/watch?v={video_id}"
+                            tdata = fetch_transcript_data(video_url)
+                            if tdata and tdata.get("status") in ("ok", "ok") and tdata.get("transcript"):
+                                chunks = chunk_text(tdata.get("transcript", ""), segments=tdata.get("segments", []))
+                                contexts = chunks[:4]
+                            else:
+                                raise
+                        except Exception:
+                            # no fallback available
+                            raise
+                    else:
+                        # re-raise original error to be handled by outer except
+                        raise
 
             def _format_ts(seconds: float) -> str:
                 if seconds is None:
