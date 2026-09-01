@@ -27,6 +27,8 @@ import json
 
 from backend.app.services.retriever import query_vectorstore
 from backend.app.services.llm import stream_response
+from backend.app.config import VECTORSTORE_DIR
+import pickle
 
 router = APIRouter()
 
@@ -35,6 +37,7 @@ router = APIRouter()
 async def query_llm(
     question: str = Query(..., description="Your question"),
     provider: str = Query("groq", description="LLM provider: groq or hf"),
+    video_id: str | None = Query(None, description="Optional video_id to use fallback mapping"),
 ):
     """Stream LLM output as newline-delimited JSON (NDJSON).
 
@@ -44,7 +47,32 @@ async def query_llm(
     def generate():
         try:
             # Step 1 – retrieve relevant text chunks
-            contexts = query_vectorstore(question, top_k=4)
+            try:
+                contexts = query_vectorstore(question, top_k=4)
+            except RuntimeError as re:
+                # If vectorstore missing, attempt to use persisted mapping.pkl
+                # Write by ingest when embeddings were unavailable.
+                mapping_candidates = []
+                if video_id:
+                    mapping_candidates.append(VECTORSTORE_DIR / f"mapping_{video_id}.pkl")
+                mapping_candidates.append(VECTORSTORE_DIR / "mapping.pkl")
+
+                loaded = None
+                for m in mapping_candidates:
+                    try:
+                        if m.exists():
+                            with open(m, "rb") as f:
+                                loaded = pickle.load(f)
+                            break
+                    except Exception:
+                        continue
+
+                if loaded:
+                    # take top-k segments as fallback
+                    contexts = loaded[:4]
+                else:
+                    # re-raise original error to be handled by outer except
+                    raise
 
             def _format_ts(seconds: float) -> str:
                 if seconds is None:
