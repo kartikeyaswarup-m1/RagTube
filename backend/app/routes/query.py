@@ -140,12 +140,21 @@ async def query_llm(
             )
 
             # Step 3 – ask the selected LLM provider with streaming
-            for text in stream_response(prompt, provider=provider):
-                if text:
-                    yield json.dumps({"text": text}) + "\n"
+            try:
+                for text in stream_response(prompt, provider=provider):
+                    if text:
+                        yield json.dumps({"text": text}) + "\n"
 
-            # Final marker
-            yield json.dumps({"done": True}) + "\n"
+                # Final marker
+                yield json.dumps({"done": True}) + "\n"
+            except Exception:
+                # If the LLM provider is unavailable (missing/invalid API key),
+                # gracefully fall back to returning the extracted contexts so
+                # the client still receives useful information.
+                yield json.dumps({"text": "LLM unavailable — returning transcript excerpts as fallback."}) + "\n"
+                for c in formatted_contexts:
+                    yield json.dumps({"text": c}) + "\n"
+                yield json.dumps({"done": True}) + "\n"
 
         except Exception as e:
             yield json.dumps({"error": str(e)}) + "\n"
