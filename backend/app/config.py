@@ -16,3 +16,9 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "<REDACTED_GROQ_API_KEY>").strip()
 
 # Ensure vectorstore dir exists
 VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
+
+# Hugging Face / alternative cloud provider settings
+HF_API_TOKEN = os.getenv("HF_API_TOKEN", "").strip()
+HF_MODEL = os.getenv("HF_MODEL", "gpt2")
+HF_EMBED_MODEL = os.getenv("HF_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+EMBED_PROVIDER = os.getenv("EMBED_PROVIDER", "").strip().lower()
