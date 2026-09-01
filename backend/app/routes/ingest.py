@@ -15,8 +15,13 @@ async def ingest_video(video_url: str = Query(..., description="YouTube video UR
     # Run the blocking fetch_transcript_data in a thread pool
     transcript_data = await asyncio.to_thread(fetch_transcript_data, video_url)
     transcript = transcript_data.get("transcript", "")
-    
-    if transcript_data.get("status") != "ok":
+
+    # If the transcript fetch reported a non-ok status but still returned
+    # transcript content (some yt_dlp cases), continue so we can at least
+    # provide the transcript and segments to the frontend. Otherwise return
+    # the original error immediately.
+    original_status = transcript_data.get("status")
+    if original_status != "ok" and not transcript:
         return {
             "video_url": video_url,
             "status": transcript_data.get("status", "failed"),
