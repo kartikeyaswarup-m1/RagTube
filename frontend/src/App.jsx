@@ -253,8 +253,20 @@ export default function App() {
 
       console.debug("/ingest response", response.status, data);
       setIngestStatus(data);
-      if (data?.status === "ingested") {
+      // If backend reports ingested, set video details.
+      // Also accept responses that include a transcript and segments even
+      // when the backend returned a warning/error (e.g. missing embedding
+      // provider on cloud deploys). This ensures the UI shows the transcript
+      // rather than "No video loaded yet".
+      if (
+        data?.status === "ingested" ||
+        (data?.transcript && Array.isArray(data?.segments) && data.segments.length > 0)
+      ) {
         setVideoDetails(data);
+        // Surface server warning as UI error text without blocking the video
+        if (data?.warning || (data?.status && data.status !== "ingested")) {
+          setError(data.warning || data.error || "Ingest completed with warnings.");
+        }
       } else if (!response.ok) {
         setError(data?.error || `Ingest failed with status ${response.status}`);
       }
