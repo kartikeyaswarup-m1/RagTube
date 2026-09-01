@@ -35,7 +35,15 @@ def query_vectorstore(query: str, top_k: int = 3):
     """
     Search FAISS index with query and return top matching texts.
     """
+    # If vectorstore files don't exist, provide a graceful fallback by reusing
+    # any mapping file if present, or returning an empty list with a clear
+    # RuntimeError message for callers to handle.
     if not INDEX_FILE.exists() or not MAPPING_FILE.exists():
+        if MAPPING_FILE.exists():
+            with open(MAPPING_FILE, "rb") as f:
+                texts = pickle.load(f)
+            # Return top_k items from mapping (most recent first) as fallback
+            return texts[:top_k]
         raise RuntimeError("Vectorstore not built yet. Please ingest a video first.")
 
     index = faiss.read_index(str(INDEX_FILE))

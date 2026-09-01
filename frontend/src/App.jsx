@@ -293,7 +293,7 @@ export default function App() {
     saveChatMessage({ role: "assistant", content: "" });
 
     try {
-      const url = `${apiBase}/query?question=${encodeURIComponent(q)}&provider=${encodeURIComponent(provider)}`;
+      const url = `${apiBase}/query?question=${encodeURIComponent(q)}&provider=${encodeURIComponent(provider)}${videoDetails?.video_id ? `&video_id=${encodeURIComponent(videoDetails.video_id)}` : ""}`;
       const response = await fetch(url, {
         headers: {
           Accept: "application/x-ndjson"
