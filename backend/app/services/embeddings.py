@@ -1,3 +1,5 @@
+import os
+import logging
 import requests
 
 from backend.app.config import (
@@ -43,6 +45,13 @@ def get_embedding(text: str):
             raise RuntimeError(f"Unexpected embeddings response from Hugging Face: {data}")
 
         except Exception as e:
+            # If enabled, return a deterministic dev fallback embedding so the
+            # app remains usable while network/keys are being fixed.
+            logging.warning("HF embedding error: %s", e)
+            enable_fallback = os.getenv("ENABLE_EMBED_FALLBACK", "").strip().lower() in ("1", "true", "yes")
+            if enable_fallback:
+                # Default to 384-dimensional zero vector (miniLM default)
+                return [0.0] * 384
             raise RuntimeError(f"Error generating embeddings from Hugging Face: {e}")
 
     raise RuntimeError(f"No supported embedding provider configured. Set EMBED_PROVIDER=hf or provide HF_API_TOKEN.")
