@@ -1,0 +1,33 @@
+[app]
+  # Change the app name if you prefer
+  app = "ragtube"
+  primary_region = "iad"
+
+[build]
+  # Uses Dockerfile in repo root by default
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+[[mounts]]
+  source = "ragtube-vectorstore"
+  destination = "/app/backend/vectorstore"
+
+[env]
+# Set non-secret env vars here if desired. Secrets (tokens) should be set
+# with `flyctl secrets set` to avoid committing them in the repo.
+# Example:
+# ENABLE_EMBED_FALLBACK = "1"
