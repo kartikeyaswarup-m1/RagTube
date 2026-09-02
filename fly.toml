@@ -1,7 +1,7 @@
 [app]
-  # Change the app name if you prefer
-  app = "ragtube"
-  primary_region = "iad"
+# `flyctl` expects `app` as a top-level string; place the app name here.
+app = "ragtube"
+primary_region = "iad"
 
 [build]
   # Uses Dockerfile in repo root by default
