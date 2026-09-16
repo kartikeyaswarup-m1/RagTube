@@ -9,8 +9,11 @@ export default function App() {
   );
 
   const [videoUrl, setVideoUrl] = useState("");
+  const [manualTranscript, setManualTranscript] = useState("");
   const [ingestStatus, setIngestStatus] = useState(null);
   const [ingestBusy, setIngestBusy] = useState(false);
+  const [manualBusy, setManualBusy] = useState(false);
+  const [needsManualTranscript, setNeedsManualTranscript] = useState(false);
 
   const [question, setQuestion] = useState("");
   const [queryBusy, setQueryBusy] = useState(false);
@@ -25,6 +28,7 @@ export default function App() {
   });
 
   const canIngest = videoUrl.trim().length > 0 && !ingestBusy;
+  const canProcessManual = manualTranscript.trim().length > 0 && !manualBusy;
   const canAsk = question.trim().length > 0 && !queryBusy;
 
   const saveChatMessage = (newMessage) => {
@@ -238,6 +242,7 @@ export default function App() {
     setIngestStatus(null);
     setVideoDetails(null);
     setActiveTimestamp(0);
+    setNeedsManualTranscript(false);
     setIngestBusy(true);
 
     try {
@@ -250,12 +255,18 @@ export default function App() {
       } catch {
         data = null;
       }
-      const backendError = data?.detail || data?.error || rawBody || `Request failed with status ${response.status}`;
+      const detail = data?.detail;
+      const backendError = typeof detail === "object"
+        ? detail.message
+        : detail || data?.error || rawBody || `Request failed with status ${response.status}`;
 
       console.debug("/ingest response", response.status, data);
       setIngestStatus(data);
       if (!response.ok) {
         setError(backendError);
+        if (detail?.fallback === "manual_transcript") {
+          setNeedsManualTranscript(true);
+        }
         return;
       }
       // If backend reports ingested, set video details.
@@ -279,6 +290,51 @@ export default function App() {
       setError(err?.message || "Could not reach the backend. Check the Render service URL and CORS settings.");
     } finally {
       setIngestBusy(false);
+    }
+  };
+
+  const handleManualIngest = async (event) => {
+    event.preventDefault();
+    setError("");
+    setIngestStatus(null);
+    setVideoDetails(null);
+    setActiveTimestamp(0);
+    setManualBusy(true);
+
+    try {
+      const response = await fetch(`${apiBase}/ingest/transcript`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          video_url: videoUrl.trim(),
+          transcript: manualTranscript,
+        }),
+      });
+      const rawBody = await response.text();
+      let data = null;
+      try {
+        data = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        data = null;
+      }
+      const detail = data?.detail;
+      const backendError = typeof detail === "object"
+        ? detail.message
+        : detail || data?.error || rawBody || `Request failed with status ${response.status}`;
+
+      if (!response.ok) {
+        setError(backendError);
+        return;
+      }
+
+      setIngestStatus(data);
+      setVideoDetails(data);
+      setNeedsManualTranscript(false);
+      setError("");
+    } catch (err) {
+      setError(err?.message || "Could not reach the backend while processing the transcript.");
+    } finally {
+      setManualBusy(false);
     }
   };
 
@@ -467,6 +523,24 @@ export default function App() {
                   <span>
                     {ingestStatus.error || `Stored ${ingestStatus.chunks || 0} chunks.`}
                   </span>
+                </div>
+              )}
+              {needsManualTranscript && (
+                <div className="manual-transcript-fallback">
+                  <strong>Automatic transcript retrieval is unavailable from the deployed server.</strong>
+                  <p>Open the video on YouTube, open the transcript, copy it, and paste it here.</p>
+                  <form onSubmit={handleManualIngest}>
+                    <textarea
+                      value={manualTranscript}
+                      onChange={(event) => setManualTranscript(event.target.value)}
+                      placeholder="Paste the YouTube transcript here..."
+                      rows={10}
+                      required
+                    />
+                    <button className="primary" type="submit" disabled={!canProcessManual}>
+                      {manualBusy ? "Processing transcript…" : "Process transcript"}
+                    </button>
+                  </form>
                 </div>
               )}
             </section>

@@ -6,21 +6,6 @@ from youtube_transcript_api import (
     YouTubeTranscriptApi,
     YouTubeTranscriptApiException,
 )
-from youtube_transcript_api.proxies import GenericProxyConfig, InvalidProxyConfig
-
-from backend.app.config import YOUTUBE_PROXY_URL
-
-
-def _youtube_proxy_config() -> GenericProxyConfig | None:
-    """Create the transcript client's proxy config without exposing credentials."""
-    if not YOUTUBE_PROXY_URL:
-        return None
-
-    parsed = urlparse(YOUTUBE_PROXY_URL)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise InvalidProxyConfig("YOUTUBE_PROXY_URL must be an HTTP or HTTPS proxy URL")
-
-    return GenericProxyConfig(http_url=YOUTUBE_PROXY_URL, https_url=YOUTUBE_PROXY_URL)
 
 
 def _normalize_youtube_url(video_url: str) -> str:
@@ -71,7 +56,7 @@ def fetch_transcript_data(video_url: str) -> dict:
         if not video_id:
             return _transcript_error("Enter a valid YouTube video URL.")
 
-        api = YouTubeTranscriptApi(proxy_config=_youtube_proxy_config())
+        api = YouTubeTranscriptApi()
         transcript_list = list(api.list(video_id))
         preferred = [
             item for item in transcript_list
@@ -108,8 +93,6 @@ def fetch_transcript_data(video_url: str) -> dict:
             "thumbnail": f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
         }
 
-    except InvalidProxyConfig as error:
-        return _transcript_error(str(error), video_id)
     except NoTranscriptFound:
         return _transcript_error("No transcript or captions are available for this video.", video_id)
     except YouTubeTranscriptApiException as error:
@@ -133,13 +116,51 @@ def _transcript_error(message: str, video_id: str | None = None) -> dict:
 def _safe_transcript_error(error: Exception) -> str:
     name = type(error).__name__
     message = str(error).lower()
-    if "proxy" in message or name in {"ProxyError", "InvalidProxyConfig"}:
-        return "YouTube transcript retrieval was blocked. Check the Bright Data residential proxy configuration."
     if "429" in message or name == "TooManyRequests":
         return "YouTube rate-limited transcript retrieval. Please retry later."
     if name in {"VideoUnavailable", "InvalidVideoId"}:
         return "The YouTube video is unavailable or invalid."
     return "Transcript retrieval failed. The video may be restricted or temporarily unavailable."
+
+
+def manual_transcript_data(transcript: str, video_url: str = "") -> dict:
+    """Convert pasted plain text or timestamped transcript text to app cues."""
+    cleaned_lines = []
+    segments = []
+    timestamp_pattern = re.compile(
+        r"^\s*(?:\[)?(?P<minutes>\d{1,3}):(?P<seconds>\d{2})(?:\])?\s+(?P<text>.+?)\s*$"
+    )
+
+    for line in transcript.splitlines():
+        line = re.sub(r"<[^>]+>", "", line).strip()
+        if not line:
+            continue
+        match = timestamp_pattern.match(line)
+        if match:
+            start = int(match.group("minutes")) * 60 + int(match.group("seconds"))
+            text = re.sub(r"\s+", " ", match.group("text")).strip()
+            segments.append({"start": float(start), "end": float(start), "text": text})
+            cleaned_lines.append(text)
+        else:
+            cleaned_lines.append(re.sub(r"\s+", " ", line))
+
+    cleaned_transcript = " ".join(cleaned_lines).strip()
+    if not cleaned_transcript:
+        return _transcript_error("The transcript is empty.")
+
+    if segments:
+        for index, segment in enumerate(segments):
+            next_start = segments[index + 1]["start"] if index + 1 < len(segments) else segment["start"]
+            segment["end"] = max(segment["start"], float(next_start))
+
+    return {
+        "status": "ok",
+        "transcript": cleaned_transcript,
+        "segments": segments,
+        "video_id": _extract_video_id(video_url) if video_url else None,
+        "title": None,
+        "thumbnail": None,
+    }
 
 
 def fetch_transcript(video_url: str) -> str:

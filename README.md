@@ -1,6 +1,6 @@
 # RagTube
 
-RagTube is a Retrieval-Augmented Generation app for asking questions about YouTube videos. The React + Vite frontend sends a YouTube URL to a FastAPI backend. The backend retrieves captions with `youtube-transcript-api` through an optional Bright Data residential proxy, chunks the transcript, creates Hugging Face embeddings, stores them in FAISS, retrieves relevant chunks, and streams an answer from Groq.
+RagTube is a Retrieval-Augmented Generation app for asking questions about YouTube videos. The React + Vite frontend sends a YouTube URL to a FastAPI backend. The backend attempts captions with `youtube-transcript-api`, supports manual transcript paste when cloud YouTube access is unavailable, chunks the transcript, creates Hugging Face embeddings, stores them in FAISS, retrieves relevant chunks, and streams an answer from Groq.
 
 ## Current architecture
 
@@ -16,7 +16,7 @@ FastAPI
     `-- Groq chat completions
 ```
 
-For Render production, the transcript request is routed through the backend-only `YOUTUBE_PROXY_URL` Bright Data residential proxy because YouTube can rate-limit shared cloud IPs. The proxy credential is never sent to the frontend.
+Render may receive HTTP 429 responses from YouTube. To keep the prototype completely free, the UI offers manual transcript ingestion when automatic retrieval is unavailable.
 
 Ollama is not required by the current application or its deployment configuration.
 
@@ -54,6 +54,7 @@ Open `http://localhost:5173`, paste a public YouTube URL, ingest it, and ask a q
 - `GET /docs` — FastAPI Swagger UI
 - `GET /diagnostics` — outbound Hugging Face DNS/HTTP diagnostics
 - `GET /diagnostics/youtube` — transcript API availability and caption retrieval diagnostic
+- `POST /ingest/transcript` — process a pasted transcript through the normal RAG pipeline
 - `GET /ingest?video_url=...` — fetch captions and build FAISS files
 - `GET /query?question=...&provider=groq&video_id=...` — stream NDJSON answer chunks
 

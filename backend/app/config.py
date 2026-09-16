@@ -23,7 +23,6 @@ HF_API_TOKEN = _env("HF_API_TOKEN")
 HF_MODEL = _env("HF_MODEL", "gpt2")
 HF_EMBED_MODEL = _env("HF_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 EMBED_PROVIDER = _env("EMBED_PROVIDER", "hf").lower()
-YOUTUBE_PROXY_URL = _env("YOUTUBE_PROXY_URL")
 
 DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
 CORS_ORIGINS = [

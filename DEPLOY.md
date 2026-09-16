@@ -41,7 +41,6 @@ Never commit API keys. The repository ignores `.env` files; use `.env.example` a
    | `HF_EMBED_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` |
    | `VECTORSTORE_DIR` | `/app/backend/vectorstore` |
    | `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` initially |
-   | `YOUTUBE_PROXY_URL` | Your Bright Data residential HTTP/HTTPS proxy URL |
 
 Render supplies `PORT` automatically. The Dockerfile starts Uvicorn on `0.0.0.0:$PORT`; do not add a fixed production port.
 
@@ -103,9 +102,9 @@ Redeploy the backend after changing the variable. Do not use `*` for the product
 
 If ingestion fails, first open `/health`, then inspect the Render logs for transcript, Hugging Face, or Groq errors. Use a public video with captions for the first test.
 
-Render requires `YOUTUBE_PROXY_URL` because YouTube may rate-limit Render's shared cloud IP. Enter the complete Bright Data proxy URL only in Render's backend environment settings. Never put it in React, Vite variables, Git, or documentation.
+Render may receive HTTP 429 responses from YouTube. No proxy or paid service is required: the deployed UI offers a manual transcript fallback and processes it through the same FAISS, embedding, and Groq pipeline.
 
-The YouTube diagnostic exercises the same `youtube-transcript-api` path used by ingestion and reports the video ID, whether the API fetch succeeded, the segment count, and a safe error when it failed. It never returns cookies, API keys, or request headers.
+The YouTube diagnostic exercises the same `youtube-transcript-api` path used by automatic ingestion and reports the video ID, whether the API fetch succeeded, the segment count, and a safe error when it failed. When it fails, use the manual transcript form in the frontend.
 
 ## Free-tier limitations
 
@@ -137,4 +136,22 @@ npm run dev
 
 Open `http://localhost:5173`.
 
-For local development, `YOUTUBE_PROXY_URL` may be left empty and direct transcript retrieval is used. To reproduce production behavior, set it in `backend/.env` with your private Bright Data URL.
+For local development, automatic transcript retrieval is attempted directly. The manual endpoint is available locally and in production regardless of automatic retrieval results.
+
+## Manual transcript fallback
+
+If automatic retrieval is unavailable, paste the transcript copied from YouTube into the frontend. The backend accepts:
+
+```http
+POST /ingest/transcript
+Content-Type: application/json
+```
+
+```json
+{
+   "video_url": "https://www.youtube.com/watch?v=VIDEO_ID",
+   "transcript": "[00:00] Welcome to the video.\n[00:15] The topic is..."
+}
+```
+
+The pasted text is cleaned, timestamp cues are preserved when present, and it enters the existing chunking, Hugging Face embedding, FAISS, retrieval, and Groq pipeline.

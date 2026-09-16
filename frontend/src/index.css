@@ -746,6 +746,39 @@ button.primary:not(:disabled):hover {
   border-color: rgba(239, 68, 68, 0.5);
 }
 
+.manual-transcript-fallback {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.manual-transcript-fallback p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.manual-transcript-fallback form {
+  display: grid;
+  gap: 10px;
+}
+
+.manual-transcript-fallback textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.5;
+}
+
 .answer-card {
   background: var(--card);
   border-radius: 12px;
