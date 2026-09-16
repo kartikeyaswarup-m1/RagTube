@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query
 import socket
 import requests
-from backend.app.config import HF_API_TOKEN, EMBED_PROVIDER, GROQ_API_KEY
+from backend.app.config import HF_API_TOKEN, EMBED_PROVIDER, GROQ_API_KEY, YOUTUBE_PROXY_URL
 from backend.app.services.transcript import fetch_transcript_data
 
 router = APIRouter()
@@ -19,6 +19,7 @@ def diagnostics(video_url: str | None = Query(None, description="Optional public
             "embed_provider_set": bool(EMBED_PROVIDER),
             "hf_token_present": bool(HF_API_TOKEN),
             "groq_key_present": bool(GROQ_API_KEY),
+            "youtube_proxy_configured": bool(YOUTUBE_PROXY_URL),
         },
         "checks": {},
     }
@@ -60,6 +61,7 @@ def diagnose_transcript(video_url: str) -> dict:
     result = fetch_transcript_data(video_url)
     return {
         "video_id": result.get("video_id"),
+        "proxy_configured": bool(YOUTUBE_PROXY_URL),
         "transcript_api_available": True,
         "transcript_fetch": {
             "ok": result.get("status") == "ok",

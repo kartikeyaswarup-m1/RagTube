@@ -41,6 +41,7 @@ Never commit API keys. The repository ignores `.env` files; use `.env.example` a
    | `HF_EMBED_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` |
    | `VECTORSTORE_DIR` | `/app/backend/vectorstore` |
    | `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` initially |
+   | `YOUTUBE_PROXY_URL` | Your Bright Data residential HTTP/HTTPS proxy URL |
 
 Render supplies `PORT` automatically. The Dockerfile starts Uvicorn on `0.0.0.0:$PORT`; do not add a fixed production port.
 
@@ -102,6 +103,8 @@ Redeploy the backend after changing the variable. Do not use `*` for the product
 
 If ingestion fails, first open `/health`, then inspect the Render logs for transcript, Hugging Face, or Groq errors. Use a public video with captions for the first test.
 
+Render requires `YOUTUBE_PROXY_URL` because YouTube may rate-limit Render's shared cloud IP. Enter the complete Bright Data proxy URL only in Render's backend environment settings. Never put it in React, Vite variables, Git, or documentation.
+
 The YouTube diagnostic exercises the same `youtube-transcript-api` path used by ingestion and reports the video ID, whether the API fetch succeeded, the segment count, and a safe error when it failed. It never returns cookies, API keys, or request headers.
 
 ## Free-tier limitations
@@ -133,3 +136,5 @@ npm run dev
 ```
 
 Open `http://localhost:5173`.
+
+For local development, `YOUTUBE_PROXY_URL` may be left empty and direct transcript retrieval is used. To reproduce production behavior, set it in `backend/.env` with your private Bright Data URL.

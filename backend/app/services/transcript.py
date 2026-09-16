@@ -6,6 +6,21 @@ from youtube_transcript_api import (
     YouTubeTranscriptApi,
     YouTubeTranscriptApiException,
 )
+from youtube_transcript_api.proxies import GenericProxyConfig, InvalidProxyConfig
+
+from backend.app.config import YOUTUBE_PROXY_URL
+
+
+def _youtube_proxy_config() -> GenericProxyConfig | None:
+    """Create the transcript client's proxy config without exposing credentials."""
+    if not YOUTUBE_PROXY_URL:
+        return None
+
+    parsed = urlparse(YOUTUBE_PROXY_URL)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise InvalidProxyConfig("YOUTUBE_PROXY_URL must be an HTTP or HTTPS proxy URL")
+
+    return GenericProxyConfig(http_url=YOUTUBE_PROXY_URL, https_url=YOUTUBE_PROXY_URL)
 
 
 def _normalize_youtube_url(video_url: str) -> str:
@@ -56,7 +71,7 @@ def fetch_transcript_data(video_url: str) -> dict:
         if not video_id:
             return _transcript_error("Enter a valid YouTube video URL.")
 
-        api = YouTubeTranscriptApi()
+        api = YouTubeTranscriptApi(proxy_config=_youtube_proxy_config())
         transcript_list = list(api.list(video_id))
         preferred = [
             item for item in transcript_list
@@ -93,6 +108,8 @@ def fetch_transcript_data(video_url: str) -> dict:
             "thumbnail": f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
         }
 
+    except InvalidProxyConfig as error:
+        return _transcript_error(str(error), video_id)
     except NoTranscriptFound:
         return _transcript_error("No transcript or captions are available for this video.", video_id)
     except YouTubeTranscriptApiException as error:
@@ -115,7 +132,10 @@ def _transcript_error(message: str, video_id: str | None = None) -> dict:
 
 def _safe_transcript_error(error: Exception) -> str:
     name = type(error).__name__
-    if "429" in str(error) or name == "TooManyRequests":
+    message = str(error).lower()
+    if "proxy" in message or name in {"ProxyError", "InvalidProxyConfig"}:
+        return "YouTube transcript retrieval was blocked. Check the Bright Data residential proxy configuration."
+    if "429" in message or name == "TooManyRequests":
         return "YouTube rate-limited transcript retrieval. Please retry later."
     if name in {"VideoUnavailable", "InvalidVideoId"}:
         return "The YouTube video is unavailable or invalid."

@@ -1,6 +1,6 @@
 # RagTube
 
-RagTube is a Retrieval-Augmented Generation app for asking questions about YouTube videos. The React + Vite frontend sends a YouTube URL to a FastAPI backend. The backend retrieves captions with `youtube-transcript-api`, chunks the transcript, creates Hugging Face embeddings, stores them in FAISS, retrieves relevant chunks, and streams an answer from Groq.
+RagTube is a Retrieval-Augmented Generation app for asking questions about YouTube videos. The React + Vite frontend sends a YouTube URL to a FastAPI backend. The backend retrieves captions with `youtube-transcript-api` through an optional Bright Data residential proxy, chunks the transcript, creates Hugging Face embeddings, stores them in FAISS, retrieves relevant chunks, and streams an answer from Groq.
 
 ## Current architecture
 
@@ -15,6 +15,8 @@ FastAPI
     |-- FAISS vector store
     `-- Groq chat completions
 ```
+
+For Render production, the transcript request is routed through the backend-only `YOUTUBE_PROXY_URL` Bright Data residential proxy because YouTube can rate-limit shared cloud IPs. The proxy credential is never sent to the frontend.
 
 Ollama is not required by the current application or its deployment configuration.
 
