@@ -58,3 +58,5 @@ zstandard==0.24.0
 yt-dlp==2026.8.19
 groq==0.31.0
 huggingface_hub>=0.27.0,<1.0
+yt-dlp-ejs==0.8.0
+curl-cffi==0.16.3

@@ -1,9 +1,51 @@
 import json
+import importlib.util
 import re
+import shutil
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import requests
 import yt_dlp
+
+
+def _youtube_ydl_options() -> dict:
+    """Build extraction options for headless Linux and local development."""
+    options = {
+        "writesubtitles": True,
+        "writeautomaticsub": True,
+        "skip_download": True,
+        "subtitleslangs": ["en"],
+        "quiet": True,
+        "no_warnings": True,
+        "ignore_no_formats_error": True,
+        "noplaylist": True,
+        "retries": 3,
+        "fragment_retries": 3,
+        "socket_timeout": 30,
+        "http_headers": {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
+            )
+        },
+    }
+
+    # curl_cffi selects a supported target when given an empty target. Keep the
+    # app usable without it, while using browser-like TLS on Linux when present.
+    if importlib.util.find_spec("curl_cffi"):
+        from yt_dlp.networking.impersonate import ImpersonateTarget
+
+        options["impersonate"] = ImpersonateTarget()
+
+    runtimes = {}
+    if shutil.which("deno"):
+        runtimes["deno"] = {}
+    if shutil.which("node"):
+        runtimes["node"] = {}
+    if runtimes:
+        options["js_runtimes"] = runtimes
+
+    return options
 
 
 def _normalize_youtube_url(video_url: str) -> str:
@@ -153,25 +195,7 @@ def fetch_transcript_data(video_url: str) -> dict:
     Fetch transcript metadata and timestamped cues for a given YouTube video.
     Returns a dictionary with transcript text, cue data, and video metadata.
     """
-    ydl_opts = {
-        "writesubtitles": True,
-        "writeautomaticsub": True,
-        "skip_download": True,
-        "subtitleslangs": ["en"],
-        "quiet": True,
-        "no_warnings": True,
-        "ignore_no_formats_error": True,
-        "noplaylist": True,
-        "retries": 3,
-        "fragment_retries": 3,
-        "socket_timeout": 30,
-        "http_headers": {
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
-            )
-        },
-    }
+    ydl_opts = _youtube_ydl_options()
 
     try:
         normalized_url = _normalize_youtube_url(video_url)
@@ -237,7 +261,7 @@ def fetch_transcript_data(video_url: str) -> dict:
         elif "video not found" in error_str or "unavailable" in error_str:
             error_message = "Error: Video not found or unavailable."
         else:
-            error_message = f"Error fetching transcript: {error_str}"
+            error_message = _safe_youtube_error(error_str)
 
         return {
             "status": "error",
@@ -248,6 +272,66 @@ def fetch_transcript_data(video_url: str) -> dict:
             "title": None,
             "thumbnail": None,
         }
+
+
+def diagnose_youtube_extraction(video_url: str) -> dict:
+    """Run a metadata-only YouTube extraction diagnostic without downloading media."""
+    result = {
+        "url": video_url,
+        "yt_dlp_version": yt_dlp.version.__version__,
+        "curl_cffi_available": importlib.util.find_spec("curl_cffi") is not None,
+        "yt_dlp_ejs_available": importlib.util.find_spec("yt_dlp_ejs") is not None,
+        "js_runtimes": {
+            name: bool(shutil.which(name)) for name in ("deno", "node", "bun", "qjs")
+        },
+        "page_request": {},
+        "extraction": {},
+    }
+
+    try:
+        response = requests.get(
+            _normalize_youtube_url(video_url),
+            headers=_youtube_ydl_options()["http_headers"],
+            timeout=30,
+        )
+        result["page_request"] = {
+            "ok": response.ok,
+            "status_code": response.status_code,
+            "content_length": len(response.content),
+        }
+    except Exception as error:
+        result["page_request"] = {"ok": False, "error": type(error).__name__}
+
+    try:
+        with yt_dlp.YoutubeDL(_youtube_ydl_options()) as ydl:
+            info = ydl.extract_info(_normalize_youtube_url(video_url), download=False)
+        result["extraction"] = {
+            "ok": True,
+            "video_id": info.get("id"),
+            "title": info.get("title"),
+            "has_subtitles": bool(info.get("subtitles") or info.get("automatic_captions")),
+        }
+    except Exception as error:
+        result["extraction"] = {
+            "ok": False,
+            "error_type": type(error).__name__,
+            "reason": _safe_youtube_error(str(error)),
+        }
+
+    return result
+
+
+def _safe_youtube_error(error_str: str) -> str:
+    """Convert extractor errors into useful diagnostics without request details."""
+    if "Failed to extract any player response" in error_str:
+        return "YouTube returned no player response; check JS runtime, EJS, or Render IP restrictions."
+    if "Sign in to confirm" in error_str or "not a bot" in error_str:
+        return "YouTube rejected the cloud request as automated traffic."
+    if "HTTP Error 429" in error_str or "429" in error_str:
+        return "YouTube rate-limited the cloud request."
+    if "Video unavailable" in error_str or "video not found" in error_str.lower():
+        return "The video is unavailable or not public."
+    return "YouTube metadata extraction failed. Check Render outbound access and yt-dlp diagnostics."
 
 def fetch_transcript(video_url: str) -> str:
     """

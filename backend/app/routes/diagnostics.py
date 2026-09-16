@@ -1,13 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 import socket
 import requests
 from backend.app.config import HF_API_TOKEN, EMBED_PROVIDER, GROQ_API_KEY
+from backend.app.services.transcript import diagnose_youtube_extraction
 
 router = APIRouter()
 
 
 @router.get("")
-def diagnostics():
+def diagnostics(video_url: str | None = Query(None, description="Optional public YouTube URL to test")):
     """Run basic DNS and HTTP connectivity checks from the running process.
 
     This is safe to expose temporarily on a deployed service to debug
@@ -39,4 +40,17 @@ def diagnostics():
     except Exception as e:
         result["checks"]["http"] = {"ok": False, "error": str(e)}
 
+    if video_url:
+        result["youtube"] = diagnose_youtube_extraction(video_url)
+
     return result
+
+
+@router.get("/youtube")
+def youtube_diagnostics(
+    video_url: str = Query(
+        "https://www.youtube.com/watch?v=2Xiljy4xzbc",
+        description="Public YouTube URL to test without downloading media",
+    ),
+):
+    return diagnose_youtube_extraction(video_url)

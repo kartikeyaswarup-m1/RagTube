@@ -51,6 +51,7 @@ Open `http://localhost:5173`, paste a public YouTube URL, ingest it, and ask a q
 - `GET /health` — safe health/configuration status
 - `GET /docs` — FastAPI Swagger UI
 - `GET /diagnostics` — outbound Hugging Face DNS/HTTP diagnostics
+- `GET /diagnostics/youtube` — yt-dlp/EJS/runtime/page/extraction diagnostic (defaults to the project test video)
 - `GET /ingest?video_url=...` — fetch captions and build FAISS files
 - `GET /query?question=...&provider=groq&video_id=...` — stream NDJSON answer chunks
 
@@ -59,6 +60,7 @@ Example:
 ```bash
 curl "http://127.0.0.1:8000/ingest?video_url=https://www.youtube.com/watch?v=VIDEO_ID"
 curl -N "http://127.0.0.1:8000/query?question=What%20is%20the%20main%20point%3F&provider=groq"
+curl "http://127.0.0.1:8000/diagnostics/youtube?video_url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D2Xiljy4xzbc"
 ```
 
 ## Configuration
