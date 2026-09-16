@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query
 import socket
 import requests
 from backend.app.config import HF_API_TOKEN, EMBED_PROVIDER, GROQ_API_KEY
-from backend.app.services.transcript import diagnose_youtube_extraction
+from backend.app.services.transcript import fetch_transcript_data
 
 router = APIRouter()
 
@@ -41,7 +41,7 @@ def diagnostics(video_url: str | None = Query(None, description="Optional public
         result["checks"]["http"] = {"ok": False, "error": str(e)}
 
     if video_url:
-        result["youtube"] = diagnose_youtube_extraction(video_url)
+        result["youtube"] = diagnose_transcript(video_url)
 
     return result
 
@@ -53,4 +53,17 @@ def youtube_diagnostics(
         description="Public YouTube URL to test without downloading media",
     ),
 ):
-    return diagnose_youtube_extraction(video_url)
+    return diagnose_transcript(video_url)
+
+
+def diagnose_transcript(video_url: str) -> dict:
+    result = fetch_transcript_data(video_url)
+    return {
+        "video_id": result.get("video_id"),
+        "transcript_api_available": True,
+        "transcript_fetch": {
+            "ok": result.get("status") == "ok",
+            "segments": len(result.get("segments", [])),
+            **({"error": result["error"]} if result.get("status") != "ok" else {}),
+        },
+    }

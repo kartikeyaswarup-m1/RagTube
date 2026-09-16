@@ -10,7 +10,7 @@ router = APIRouter()
 async def ingest_video(video_url: str = Query(..., description="YouTube video URL")):
     """Ingest a YouTube video transcript and build a FAISS index.
     
-    Uses asyncio.to_thread to run blocking I/O (yt_dlp, network requests) in a thread
+    Uses asyncio.to_thread to run blocking transcript API I/O in a thread
     pool, preventing the event loop from hanging.
     """
     # Run the blocking fetch_transcript_data in a thread pool

@@ -1,59 +1,15 @@
-import json
-import importlib.util
 import re
-import shutil
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qs, urlparse
 
-import requests
-import yt_dlp
-
-
-def _youtube_ydl_options() -> dict:
-    """Build extraction options for headless Linux and local development."""
-    options = {
-        "writesubtitles": True,
-        "writeautomaticsub": True,
-        "skip_download": True,
-        "subtitleslangs": ["en"],
-        "quiet": True,
-        "no_warnings": True,
-        "ignore_no_formats_error": True,
-        "noplaylist": True,
-        "retries": 3,
-        "fragment_retries": 3,
-        "socket_timeout": 30,
-        "http_headers": {
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
-            )
-        },
-    }
-
-    # curl_cffi selects a supported target when given an empty target. Keep the
-    # app usable without it, while using browser-like TLS on Linux when present.
-    if importlib.util.find_spec("curl_cffi"):
-        from yt_dlp.networking.impersonate import ImpersonateTarget
-
-        options["impersonate"] = ImpersonateTarget()
-
-    runtimes = {}
-    if shutil.which("deno"):
-        runtimes["deno"] = {}
-    if shutil.which("node"):
-        runtimes["node"] = {}
-    if runtimes:
-        options["js_runtimes"] = runtimes
-
-    return options
+from youtube_transcript_api import (
+    NoTranscriptFound,
+    YouTubeTranscriptApi,
+    YouTubeTranscriptApiException,
+)
 
 
 def _normalize_youtube_url(video_url: str) -> str:
-    """Strip playlist-specific parameters so yt_dlp treats the URL as a single video.
-
-    Some YouTube share links include `list` and `index` query params. Those can make
-    yt_dlp lean toward playlist handling, which is unnecessary for transcript ingest.
-    """
+    """Normalize supported YouTube URLs to a canonical watch URL."""
     parsed = urlparse(video_url)
 
     if "youtube.com" not in parsed.netloc and "youtu.be" not in parsed.netloc:
@@ -68,126 +24,25 @@ def _normalize_youtube_url(video_url: str) -> str:
     if not video_id:
         return video_url
 
-    normalized_query = urlencode({"v": video_id})
-    return urlunparse(("https", "www.youtube.com", "/watch", "", normalized_query, ""))
+    return f"https://www.youtube.com/watch?v={video_id}"
 
 
-def _timestamp_to_seconds(timestamp: str) -> float:
-    parts = timestamp.split(":")
-    if len(parts) == 2:
-        hours = 0
-        minutes, seconds = parts
-    elif len(parts) == 3:
-        hours, minutes, seconds = parts
-    else:
-        raise ValueError(f"Unsupported timestamp format: {timestamp}")
+def _extract_video_id(video_url: str) -> str:
+    parsed = urlparse(video_url)
+    hostname = parsed.netloc.lower()
 
-    return (int(hours) * 3600) + (int(minutes) * 60) + float(seconds)
+    if hostname == "youtu.be" or hostname.endswith(".youtu.be"):
+        return parsed.path.strip("/").split("/")[0]
 
+    if "youtube.com" in hostname:
+        video_id = parse_qs(parsed.query).get("v", [""])[0]
+        if video_id:
+            return video_id
+        match = re.match(r"^/(?:shorts|embed|live)/([^/?]+)", parsed.path)
+        if match:
+            return match.group(1)
 
-def _clean_caption_text(text: str) -> str:
-    cleaned = re.sub(r"<[^>]+>", "", text)
-    cleaned = re.sub(r"\s+", " ", cleaned)
-    return cleaned.strip()
-
-
-def _parse_vtt_cues(raw_text: str) -> list[dict]:
-    cues: list[dict] = []
-    lines = [line.rstrip("\n") for line in raw_text.splitlines()]
-    index = 0
-
-    while index < len(lines):
-        line = lines[index].strip()
-
-        if not line or line == "WEBVTT" or line.startswith(("NOTE", "STYLE")):
-            index += 1
-            continue
-
-        if "-->" not in line:
-            if index + 1 < len(lines) and "-->" in lines[index + 1]:
-                index += 1
-                line = lines[index].strip()
-            else:
-                index += 1
-                continue
-
-        match = re.match(
-            r"(?P<start>\d{2}:\d{2}:\d{2}\.\d{3}|\d{2}:\d{2}\.\d{3})\s*-->\s*(?P<end>\d{2}:\d{2}:\d{2}\.\d{3}|\d{2}:\d{2}\.\d{3})",
-            line,
-        )
-        if not match:
-            index += 1
-            continue
-
-        index += 1
-        text_lines: list[str] = []
-        while index < len(lines):
-            text_line = lines[index].strip()
-            if not text_line:
-                break
-            if text_line.startswith(("NOTE", "STYLE")):
-                break
-            text_lines.append(text_line)
-            index += 1
-
-        text = _clean_caption_text(" ".join(text_lines))
-        if text:
-            cues.append(
-                {
-                    "start": _timestamp_to_seconds(match.group("start")),
-                    "end": _timestamp_to_seconds(match.group("end")),
-                    "text": text,
-                }
-            )
-
-        while index < len(lines) and not lines[index].strip():
-            index += 1
-
-    return cues
-
-
-def _parse_json_cues(raw_text: str) -> list[dict]:
-    data = json.loads(raw_text)
-    cues: list[dict] = []
-
-    for event in data.get("events", []):
-        segments = event.get("segs", [])
-        text = _clean_caption_text("".join(segment.get("utf8", "") for segment in segments))
-        start_ms = event.get("tStartMs")
-        if not text or start_ms is None:
-            continue
-
-        duration_ms = event.get("dDurationMs")
-        start = float(start_ms) / 1000.0
-        end = start + (float(duration_ms) / 1000.0 if duration_ms else 0.0)
-        cues.append({"start": start, "end": end, "text": text})
-
-    return cues
-
-
-def _select_caption_track(tracks: dict) -> list[dict]:
-    if not tracks:
-        return []
-
-    for language_code in ("en", "en-US", "en-GB"):
-        if language_code in tracks:
-            return tracks[language_code]
-
-    for language_code, track_list in tracks.items():
-        if language_code.lower().startswith("en"):
-            return track_list
-
-    return next(iter(tracks.values()), [])
-
-
-def _parse_caption_cues(raw_text: str) -> list[dict]:
-    if raw_text.strip().startswith("{"):
-        try:
-            return _parse_json_cues(raw_text)
-        except Exception:
-            return []
-
-    return _parse_vtt_cues(raw_text)
+    return ""
 
 
 def fetch_transcript_data(video_url: str) -> dict:
@@ -195,147 +50,81 @@ def fetch_transcript_data(video_url: str) -> dict:
     Fetch transcript metadata and timestamped cues for a given YouTube video.
     Returns a dictionary with transcript text, cue data, and video metadata.
     """
-    ydl_opts = _youtube_ydl_options()
-
     try:
         normalized_url = _normalize_youtube_url(video_url)
+        video_id = _extract_video_id(normalized_url)
+        if not video_id:
+            return _transcript_error("Enter a valid YouTube video URL.")
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(normalized_url, download=False)
+        api = YouTubeTranscriptApi()
+        transcript_list = list(api.list(video_id))
+        preferred = [
+            item for item in transcript_list
+            if item.language_code.startswith("en") and not item.is_generated
+        ]
+        generated = [
+            item for item in transcript_list
+            if item.language_code.startswith("en") and item.is_generated
+        ]
+        candidates = preferred or generated or transcript_list
+        if not candidates:
+            return _transcript_error("No transcript or captions are available for this video.", video_id)
 
-            subtitles = info.get("subtitles", {})
-            if not subtitles or not _select_caption_track(subtitles):
-                subtitles = info.get("automatic_captions", {})
-
-            caption_tracks = _select_caption_track(subtitles)
-            if not caption_tracks:
-                return {
-                    "status": "failed",
-                    "error": "No transcript available for this video.",
-                    "transcript": "No transcript available for this video.",
-                    "segments": [],
-                    "video_id": info.get("id"),
-                    "title": info.get("title"),
-                    "thumbnail": info.get("thumbnail"),
-                }
-
-            subtitle_url = caption_tracks[0]["url"]
-            response = requests.get(subtitle_url, timeout=10)
-            if response.status_code != 200:
-                return {
-                    "status": "failed",
-                    "error": "Failed to fetch transcript.",
-                    "transcript": "Failed to fetch transcript.",
-                    "segments": [],
-                    "video_id": info.get("id"),
-                    "title": info.get("title"),
-                    "thumbnail": info.get("thumbnail"),
-                }
-
-            segments = _parse_caption_cues(response.text)
-            transcript = " ".join(segment["text"] for segment in segments).strip()
-
-            if not transcript:
-                transcript = "Transcript is empty."
-
-            return {
-                "status": "ok",
-                "transcript": transcript,
-                "segments": segments,
-                "video_id": info.get("id"),
-                "title": info.get("title"),
-                "thumbnail": info.get("thumbnail"),
+        fetched = candidates[0].fetch()
+        segments = [
+            {
+                "start": float(snippet.start),
+                "end": float(snippet.start + snippet.duration),
+                "text": snippet.text.strip(),
             }
-
-    except Exception as e:
-        error_str = str(e)
-        if "Failed to extract any player response" in error_str:
-            error_message = (
-                "YouTube did not return a player response. The video may be temporarily "
-                "protected or YouTube may require a newer extractor. Please retry shortly."
-            )
-        elif "Requested format is not available" in error_str:
-            error_message = "Error: Video format unavailable. Try a different video or check if it's geo-blocked."
-        elif "age-restricted" in error_str or "429" in error_str:
-            error_message = "Error: Video is age-restricted or temporarily unavailable."
-        elif "video not found" in error_str or "unavailable" in error_str:
-            error_message = "Error: Video not found or unavailable."
-        else:
-            error_message = _safe_youtube_error(error_str)
+            for snippet in fetched.snippets
+            if snippet.text.strip()
+        ]
+        transcript = " ".join(segment["text"] for segment in segments).strip()
+        if not segments:
+            return _transcript_error("No transcript or captions are available for this video.", video_id)
 
         return {
-            "status": "error",
-            "error": error_message,
-            "transcript": error_message,
-            "segments": [],
-            "video_id": None,
+            "status": "ok",
+            "transcript": transcript,
+            "segments": segments,
+            "video_id": video_id,
             "title": None,
-            "thumbnail": None,
+            "thumbnail": f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
         }
 
+    except NoTranscriptFound:
+        return _transcript_error("No transcript or captions are available for this video.", video_id)
+    except YouTubeTranscriptApiException as error:
+        return _transcript_error(_safe_transcript_error(error), video_id)
+    except Exception as error:
+        return _transcript_error(_safe_transcript_error(error), video_id)
 
-def diagnose_youtube_extraction(video_url: str) -> dict:
-    """Run a metadata-only YouTube extraction diagnostic without downloading media."""
-    result = {
-        "url": video_url,
-        "yt_dlp_version": yt_dlp.version.__version__,
-        "curl_cffi_available": importlib.util.find_spec("curl_cffi") is not None,
-        "yt_dlp_ejs_available": importlib.util.find_spec("yt_dlp_ejs") is not None,
-        "js_runtimes": {
-            name: bool(shutil.which(name)) for name in ("deno", "node", "bun", "qjs")
-        },
-        "page_request": {},
-        "extraction": {},
+
+def _transcript_error(message: str, video_id: str | None = None) -> dict:
+    return {
+        "status": "error",
+        "error": message,
+        "transcript": message,
+        "segments": [],
+        "video_id": video_id,
+        "title": None,
+        "thumbnail": None,
     }
 
-    try:
-        response = requests.get(
-            _normalize_youtube_url(video_url),
-            headers=_youtube_ydl_options()["http_headers"],
-            timeout=30,
-        )
-        result["page_request"] = {
-            "ok": response.ok,
-            "status_code": response.status_code,
-            "content_length": len(response.content),
-        }
-    except Exception as error:
-        result["page_request"] = {"ok": False, "error": type(error).__name__}
 
-    try:
-        with yt_dlp.YoutubeDL(_youtube_ydl_options()) as ydl:
-            info = ydl.extract_info(_normalize_youtube_url(video_url), download=False)
-        result["extraction"] = {
-            "ok": True,
-            "video_id": info.get("id"),
-            "title": info.get("title"),
-            "has_subtitles": bool(info.get("subtitles") or info.get("automatic_captions")),
-        }
-    except Exception as error:
-        result["extraction"] = {
-            "ok": False,
-            "error_type": type(error).__name__,
-            "reason": _safe_youtube_error(str(error)),
-        }
+def _safe_transcript_error(error: Exception) -> str:
+    name = type(error).__name__
+    if "429" in str(error) or name == "TooManyRequests":
+        return "YouTube rate-limited transcript retrieval. Please retry later."
+    if name in {"VideoUnavailable", "InvalidVideoId"}:
+        return "The YouTube video is unavailable or invalid."
+    return "Transcript retrieval failed. The video may be restricted or temporarily unavailable."
 
-    return result
-
-
-def _safe_youtube_error(error_str: str) -> str:
-    """Convert extractor errors into useful diagnostics without request details."""
-    if "Failed to extract any player response" in error_str:
-        return "YouTube returned no player response; check JS runtime, EJS, or Render IP restrictions."
-    if "Sign in to confirm" in error_str or "not a bot" in error_str:
-        return "YouTube rejected the cloud request as automated traffic."
-    if "HTTP Error 429" in error_str or "429" in error_str:
-        return "YouTube rate-limited the cloud request."
-    if "Video unavailable" in error_str or "video not found" in error_str.lower():
-        return "The video is unavailable or not public."
-    return "YouTube metadata extraction failed. Check Render outbound access and yt-dlp diagnostics."
 
 def fetch_transcript(video_url: str) -> str:
     """
-    Fetch transcript (manual or automatic subtitles) for a given YouTube video using yt_dlp.
+    Fetch transcript (manual or automatic subtitles) for a given YouTube video.
     Returns the transcript as clean text, or an error message if unavailable.
     Tries multiple fallback strategies to handle geo-blocked or restricted videos.
     """

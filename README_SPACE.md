@@ -80,7 +80,7 @@ def cosine_sim(query_vec, vectors, top_k=5):
 
 4) Transcripts & chunking
 
-- Reuse `backend/app/services/transcript.py` functions (`fetch_transcript`, `chunk_text`) by importing. If those functions call subprocesses (`yt_dlp`), ensure the Space provides that binary (might not). Alternative: use `youtube_transcript_api` pure Python library which works in Spaces.
+- Reuse `backend/app/services/transcript.py` functions (`fetch_transcript`, `chunk_text`) by importing. The production transcript service uses the pure-Python `youtube-transcript-api` client.
 
 5) LLM calls (Groq or other)
 

@@ -102,7 +102,7 @@ Redeploy the backend after changing the variable. Do not use `*` for the product
 
 If ingestion fails, first open `/health`, then inspect the Render logs for transcript, Hugging Face, or Groq errors. Use a public video with captions for the first test.
 
-The YouTube diagnostic reports the yt-dlp version, whether `curl_cffi` and `yt-dlp-ejs` are installed, available JavaScript runtimes, a basic YouTube page request, and metadata-only extraction. It never returns cookies, API keys, or request headers.
+The YouTube diagnostic exercises the same `youtube-transcript-api` path used by ingestion and reports the video ID, whether the API fetch succeeded, the segment count, and a safe error when it failed. It never returns cookies, API keys, or request headers.
 
 ## Free-tier limitations
 

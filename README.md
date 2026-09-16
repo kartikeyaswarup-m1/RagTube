@@ -1,6 +1,6 @@
 # RagTube
 
-RagTube is a Retrieval-Augmented Generation app for asking questions about YouTube videos. The React + Vite frontend sends a YouTube URL to a FastAPI backend. The backend fetches captions with `yt-dlp`, chunks the transcript, creates Hugging Face embeddings, stores them in FAISS, retrieves relevant chunks, and streams an answer from Groq.
+RagTube is a Retrieval-Augmented Generation app for asking questions about YouTube videos. The React + Vite frontend sends a YouTube URL to a FastAPI backend. The backend retrieves captions with `youtube-transcript-api`, chunks the transcript, creates Hugging Face embeddings, stores them in FAISS, retrieves relevant chunks, and streams an answer from Groq.
 
 ## Current architecture
 
@@ -10,7 +10,7 @@ React + Vite
     | HTTPS / JSON + NDJSON streaming
     v
 FastAPI
-    |-- YouTube captions via yt-dlp
+    |-- YouTube captions via youtube-transcript-api
     |-- Hugging Face embeddings
     |-- FAISS vector store
     `-- Groq chat completions
@@ -51,7 +51,7 @@ Open `http://localhost:5173`, paste a public YouTube URL, ingest it, and ask a q
 - `GET /health` — safe health/configuration status
 - `GET /docs` — FastAPI Swagger UI
 - `GET /diagnostics` — outbound Hugging Face DNS/HTTP diagnostics
-- `GET /diagnostics/youtube` — yt-dlp/EJS/runtime/page/extraction diagnostic (defaults to the project test video)
+- `GET /diagnostics/youtube` — transcript API availability and caption retrieval diagnostic
 - `GET /ingest?video_url=...` — fetch captions and build FAISS files
 - `GET /query?question=...&provider=groq&video_id=...` — stream NDJSON answer chunks
 
