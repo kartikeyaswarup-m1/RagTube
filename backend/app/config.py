@@ -6,17 +6,37 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-VECTORSTORE_DIR = Path(os.getenv("VECTORSTORE_DIR", BASE_DIR / "vectorstore"))
-# Ollama removed — default to Groq for cloud deployments
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq").strip().lower()
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "<REDACTED_GROQ_API_KEY>").strip()
+def _env(name: str, default: str = "") -> str:
+	return os.getenv(name, default).strip()
+
+
+VECTORSTORE_DIR = Path(_env("VECTORSTORE_DIR", str(BASE_DIR / "vectorstore"))).expanduser()
+LLM_PROVIDER = _env("LLM_PROVIDER", "groq").lower()
+GROQ_MODEL = _env("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_API_KEY = _env("GROQ_API_KEY")
 
 # Ensure vectorstore dir exists
 VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
 
-# Hugging Face / alternative cloud provider settings
-HF_API_TOKEN = os.getenv("HF_API_TOKEN", "").strip()
-HF_MODEL = os.getenv("HF_MODEL", "gpt2")
-HF_EMBED_MODEL = os.getenv("HF_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-EMBED_PROVIDER = os.getenv("EMBED_PROVIDER", "").strip().lower()
+# Hugging Face settings
+HF_API_TOKEN = _env("HF_API_TOKEN")
+HF_MODEL = _env("HF_MODEL", "gpt2")
+HF_EMBED_MODEL = _env("HF_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+EMBED_PROVIDER = _env("EMBED_PROVIDER", "hf").lower()
+
+DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+CORS_ORIGINS = [
+	origin
+	for origin in _env("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
+	if origin
+]
+
+
+def missing_runtime_configuration() -> list[str]:
+	"""Return names of credentials needed for the configured providers."""
+	missing = []
+	if LLM_PROVIDER == "groq" and not GROQ_API_KEY:
+		missing.append("GROQ_API_KEY")
+	if EMBED_PROVIDER == "hf" and not HF_API_TOKEN:
+		missing.append("HF_API_TOKEN")
+	return missing

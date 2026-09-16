@@ -1,20 +1,14 @@
-import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.routes import ingest, query
 from backend.app.routes import diagnostics
+from backend.app.config import CORS_ORIGINS, missing_runtime_configuration
 
 app = FastAPI(title="RagTube Backend")
 
-cors_origins = [
-    origin.strip()
-    for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
-    if origin.strip()
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
@@ -26,4 +20,15 @@ app.include_router(diagnostics.router, prefix="/diagnostics", tags=["diagnostics
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to RagTube Backend 🚀"}
+    return {"message": "Welcome to RagTube Backend"}
+
+
+@app.get("/health")
+def health():
+    missing = missing_runtime_configuration()
+    return {
+        "status": "ok" if not missing else "degraded",
+        "configuration": {
+            "missing": missing,
+        },
+    }

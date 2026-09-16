@@ -6,16 +6,14 @@ from backend.app.config import (
     HF_API_TOKEN,
     HF_EMBED_MODEL,
     EMBED_PROVIDER,
-    LLM_PROVIDER,
 )
 
 
 def get_embedding(text: str):
     """
-    Generate embeddings for text using Ollama or Hugging Face.
-    Prefers provider specified by `EMBED_PROVIDER`; falls back to `LLM_PROVIDER`.
+    Generate embeddings using the configured Hugging Face provider.
     """
-    provider = (EMBED_PROVIDER or LLM_PROVIDER or "hf").strip().lower()
+    provider = (EMBED_PROVIDER or "hf").strip().lower()
 
     if provider == "hf":
         if not HF_API_TOKEN:

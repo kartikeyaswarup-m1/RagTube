@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY . /app
 
 ENV PORT=8000
-EXPOSE ${PORT}
+EXPOSE 8000
 
 # Use shell form so environment variable expansion happens at container runtime
 # Render provides the PORT env var; fall back to 8000 if not set.

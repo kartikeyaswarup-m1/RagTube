@@ -27,6 +27,7 @@ COPY . /app
 # Ensure vectorstore dir exists and is writable
 RUN mkdir -p /app/backend/vectorstore && chown -R www-data:www-data /app/backend/vectorstore || true
 
-EXPOSE 8080
+ENV PORT=8000
+EXPOSE 8000
 
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "${PORT:-8080}"]
+CMD ["sh", "-c", "exec uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
