@@ -143,7 +143,7 @@ For local development, automatic transcript retrieval is attempted directly. The
 If automatic retrieval is unavailable, paste the transcript copied from YouTube into the frontend. The backend accepts:
 
 ```http
-POST /ingest/transcript
+POST /ingest/manual
 Content-Type: application/json
 ```
 

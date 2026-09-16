@@ -262,6 +262,11 @@ export default function App() {
 
       console.debug("/ingest response", response.status, data);
       setIngestStatus(data);
+      if (data?.status === "transcript_unavailable" && data?.fallback === "manual_transcript") {
+        setNeedsManualTranscript(true);
+        setError("Automatic transcript retrieval is unavailable. Paste the transcript below to continue.");
+        return;
+      }
       if (!response.ok) {
         setError(backendError);
         if (detail?.fallback === "manual_transcript") {
@@ -302,7 +307,7 @@ export default function App() {
     setManualBusy(true);
 
     try {
-      const response = await fetch(`${apiBase}/ingest/transcript`, {
+      const response = await fetch(`${apiBase}/ingest/manual`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -330,6 +335,7 @@ export default function App() {
       setIngestStatus(data);
       setVideoDetails(data);
       setNeedsManualTranscript(false);
+      setManualTranscript("");
       setError("");
     } catch (err) {
       setError(err?.message || "Could not reach the backend while processing the transcript.");

@@ -54,7 +54,7 @@ Open `http://localhost:5173`, paste a public YouTube URL, ingest it, and ask a q
 - `GET /docs` — FastAPI Swagger UI
 - `GET /diagnostics` — outbound Hugging Face DNS/HTTP diagnostics
 - `GET /diagnostics/youtube` — transcript API availability and caption retrieval diagnostic
-- `POST /ingest/transcript` — process a pasted transcript through the normal RAG pipeline
+- `POST /ingest/manual` — process a pasted transcript through the normal RAG pipeline
 - `GET /ingest?video_url=...` — fetch captions and build FAISS files
 - `GET /query?question=...&provider=groq&video_id=...` — stream NDJSON answer chunks
 

@@ -27,9 +27,17 @@ def _normalize_youtube_url(video_url: str) -> str:
     return f"https://www.youtube.com/watch?v={video_id}"
 
 
-def _extract_video_id(video_url: str) -> str:
-    parsed = urlparse(video_url)
-    hostname = parsed.netloc.lower()
+def extract_video_id(video_url: str) -> str:
+    """Extract a video ID from common YouTube URL formats.
+
+    Keeping this in the transcript service means automatic and pasted
+    transcript ingestion validate URLs the same way.
+    """
+    try:
+        parsed = urlparse(video_url.strip())
+        hostname = parsed.netloc.lower()
+    except (AttributeError, ValueError):
+        return ""
 
     if hostname == "youtu.be" or hostname.endswith(".youtu.be"):
         return parsed.path.strip("/").split("/")[0]
@@ -52,7 +60,7 @@ def fetch_transcript_data(video_url: str) -> dict:
     """
     try:
         normalized_url = _normalize_youtube_url(video_url)
-        video_id = _extract_video_id(normalized_url)
+        video_id = extract_video_id(normalized_url)
         if not video_id:
             return _transcript_error("Enter a valid YouTube video URL.")
 
@@ -157,7 +165,7 @@ def manual_transcript_data(transcript: str, video_url: str = "") -> dict:
         "status": "ok",
         "transcript": cleaned_transcript,
         "segments": segments,
-        "video_id": _extract_video_id(video_url) if video_url else None,
+        "video_id": extract_video_id(video_url) if video_url else None,
         "title": None,
         "thumbnail": None,
     }
@@ -190,6 +198,12 @@ def chunk_text(
     """
     if not text:
         return []
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be greater than zero.")
+    if overlap < 0:
+        raise ValueError("overlap cannot be negative.")
+    # An overlap equal to the whole chunk would never advance the cursor.
+    overlap = min(overlap, chunk_size - 1)
 
     if segments:
         # Chunk by segments and attach timestamp metadata to each chunk.
@@ -246,5 +260,9 @@ def chunk_text(
         chunk = text[start:end].strip()
         if chunk:
             chunks.append(chunk)
-        start = max(end - overlap, end)
+        if end >= text_len:
+            break
+        # Advance by chunk_size minus overlap.  The old max(...) expression
+        # always selected ``end``, silently disabling overlap.
+        start = end - overlap
     return chunks
