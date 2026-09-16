@@ -162,6 +162,15 @@ def fetch_transcript_data(video_url: str) -> dict:
         "no_warnings": True,
         "ignore_no_formats_error": True,
         "noplaylist": True,
+        "retries": 3,
+        "fragment_retries": 3,
+        "socket_timeout": 30,
+        "http_headers": {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
+            )
+        },
     }
 
     try:
@@ -216,7 +225,12 @@ def fetch_transcript_data(video_url: str) -> dict:
 
     except Exception as e:
         error_str = str(e)
-        if "Requested format is not available" in error_str:
+        if "Failed to extract any player response" in error_str:
+            error_message = (
+                "YouTube did not return a player response. The video may be temporarily "
+                "protected or YouTube may require a newer extractor. Please retry shortly."
+            )
+        elif "Requested format is not available" in error_str:
             error_message = "Error: Video format unavailable. Try a different video or check if it's geo-blocked."
         elif "age-restricted" in error_str or "429" in error_str:
             error_message = "Error: Video is age-restricted or temporarily unavailable."

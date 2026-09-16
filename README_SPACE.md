@@ -48,16 +48,14 @@ Minimal code-conversion notes
 
 ```python
 import os
-import requests
+from huggingface_hub import InferenceClient
 
 def get_hf_embedding(text: str, model: str = None) -> list[float]:
     token = os.getenv("HF_API_TOKEN")
     model = model or os.getenv("EMBED_MODEL") or "sentence-transformers/all-MiniLM-L6-v2"
-    url = f"https://api-inference.huggingface.co/embeddings/{model}"
-    headers = {"Authorization": f"Bearer {token}"}
-    resp = requests.post(url, json={"inputs": text}, headers=headers, timeout=30)
-    resp.raise_for_status()
-    return resp.json()["embedding"]
+    client = InferenceClient(provider="hf-inference", token=token, timeout=30)
+    result = client.feature_extraction(text, model=model)
+    return result.tolist() if hasattr(result, "tolist") else list(result)
 ```
 
 - Keep `ENABLE_EMBED_FALLBACK` behavior: if HF fails and fallback is enabled, return a deterministic zero vector (or a small random vector with a fixed seed).

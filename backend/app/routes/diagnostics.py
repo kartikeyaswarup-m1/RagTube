@@ -22,7 +22,7 @@ def diagnostics():
         "checks": {},
     }
 
-    host = "api-inference.huggingface.co"
+    host = "router.huggingface.co"
     # DNS resolution
     try:
         infos = socket.getaddrinfo(host, 443)
@@ -31,11 +31,10 @@ def diagnostics():
     except Exception as e:
         result["checks"]["dns"] = {"ok": False, "error": str(e)}
 
-    # HTTP reachability (HEAD/GET)
+    # HTTP reachability. A 2xx/3xx/4xx response still proves DNS and HTTPS work;
+    # authentication/model errors are reported by the embedding request itself.
     try:
-        url = "https://api-inference.huggingface.co/embeddings"
-        # do a lightweight request; token may be missing/invalid (that's OK)
-        resp = requests.post(url, json={"model": "test", "input": "ping"}, timeout=10)
+        resp = requests.get("https://router.huggingface.co", timeout=10)
         result["checks"]["http"] = {"ok": True, "status_code": resp.status_code, "reason": resp.reason}
     except Exception as e:
         result["checks"]["http"] = {"ok": False, "error": str(e)}

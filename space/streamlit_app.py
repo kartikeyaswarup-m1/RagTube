@@ -2,6 +2,7 @@ import os
 import streamlit as st
 import requests
 import numpy as np
+from huggingface_hub import InferenceClient
 from youtube_transcript_api import YouTubeTranscriptApi
 
 
@@ -31,13 +32,14 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200):
 def get_hf_embedding(text: str, model: str | None = None) -> list[float]:
     token = os.getenv("HF_API_TOKEN")
     model = model or os.getenv("EMBED_MODEL") or "sentence-transformers/all-MiniLM-L6-v2"
-    url = f"https://api-inference.huggingface.co/embeddings/{model}"
-    headers = {"Authorization": f"Bearer {token}"} if token else {}
     try:
-        resp = requests.post(url, json={"inputs": text}, headers=headers, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-        return data.get("embedding") or data.get("data", [])[0].get("embedding")
+        client = InferenceClient(provider="hf-inference", token=token, timeout=30)
+        result = client.feature_extraction(text, model=model)
+        if hasattr(result, "tolist"):
+            result = result.tolist()
+        if result and isinstance(result[0], list):
+            return [sum(row[index] for row in result) / len(result) for index in range(len(result[0]))]
+        return list(result)
     except Exception:
         if os.getenv("ENABLE_EMBED_FALLBACK") == "1":
             return [0.0] * 384
@@ -107,7 +109,8 @@ def main():
     if st.session_state.get("meta"):
         st.subheader("Ingested chunks (preview)")
         for i, m in enumerate(st.session_state["meta"][:5]):
-            st.markdown(f"**{i}**: {m['text'][:200].replace('\n',' ')}...")
+            preview = m["text"][:200].replace("\n", " ")
+            st.markdown(f"**{i}**: {preview}...")
 
     question = st.text_input("Ask a question")
     if st.button("Query"):

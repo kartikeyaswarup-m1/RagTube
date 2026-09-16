@@ -243,16 +243,21 @@ export default function App() {
     try {
       const url = `${apiBase}/ingest?video_url=${encodeURIComponent(videoUrl.trim())}`;
       const response = await fetch(url);
+      const rawBody = await response.text();
       let data = null;
       try {
-        data = await response.json();
-      } catch (e) {
-        const text = await response.text().catch(() => "<non-JSON response>");
-        data = { status: response.ok ? "ok" : "error", error: text };
+        data = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        data = null;
       }
+      const backendError = data?.detail || data?.error || rawBody || `Request failed with status ${response.status}`;
 
       console.debug("/ingest response", response.status, data);
       setIngestStatus(data);
+      if (!response.ok) {
+        setError(backendError);
+        return;
+      }
       // If backend reports ingested, set video details.
       // Also accept responses that include a transcript and segments even
       // when the backend returned a warning/error (e.g. missing embedding
@@ -267,11 +272,11 @@ export default function App() {
         if (data?.warning || (data?.status && data.status !== "ingested")) {
           setError(data.warning || data.error || "Ingest completed with warnings.");
         }
-      } else if (!response.ok) {
-        setError(data?.error || `Ingest failed with status ${response.status}`);
+      } else {
+        setError(backendError);
       }
     } catch (err) {
-      setError(err?.message || "Failed to ingest video.");
+      setError(err?.message || "Could not reach the backend. Check the Render service URL and CORS settings.");
     } finally {
       setIngestBusy(false);
     }
@@ -301,7 +306,14 @@ export default function App() {
       });
 
       if (!response.ok || !response.body) {
-        throw new Error("Query failed. Check backend logs.");
+        const rawBody = await response.text().catch(() => "");
+        let data = null;
+        try {
+          data = rawBody ? JSON.parse(rawBody) : null;
+        } catch {
+          data = null;
+        }
+        throw new Error(data?.detail || data?.error || rawBody || `Query failed with status ${response.status}.`);
       }
 
       const reader = response.body.getReader();

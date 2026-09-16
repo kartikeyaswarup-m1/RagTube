@@ -1,6 +1,8 @@
 import os
 import logging
-import requests
+from collections.abc import Sequence
+
+from huggingface_hub import InferenceClient
 
 from backend.app.config import (
     HF_API_TOKEN,
@@ -9,47 +11,56 @@ from backend.app.config import (
 )
 
 
+class EmbeddingError(RuntimeError):
+    """A safe, user-facing embedding provider failure."""
+
+
+def _embedding_values(result) -> list[float]:
+    """Normalize InferenceClient output to one flat embedding vector."""
+    if hasattr(result, "tolist"):
+        result = result.tolist()
+
+    if isinstance(result, Sequence) and not isinstance(result, (str, bytes)):
+        values = list(result)
+        if values and isinstance(values[0], Sequence):
+            rows = [[float(value) for value in row] for row in values]
+            width = len(rows[0])
+            if not width or any(len(row) != width for row in rows):
+                raise EmbeddingError("Hugging Face returned an invalid embedding shape")
+            return [sum(row[index] for row in rows) / len(rows) for index in range(width)]
+        if values and all(isinstance(value, (int, float)) for value in values):
+            return [float(value) for value in values]
+
+    raise EmbeddingError("Hugging Face returned an invalid embedding response")
+
+
 def get_embedding(text: str):
     """
-    Generate embeddings using the configured Hugging Face provider.
+    Generate embeddings through Hugging Face's supported InferenceClient API.
     """
     provider = (EMBED_PROVIDER or "hf").strip().lower()
 
     if provider == "hf":
         if not HF_API_TOKEN:
-            raise RuntimeError("HF_API_TOKEN is not set for Hugging Face embeddings")
-
-        url = "https://api-inference.huggingface.co/embeddings"
-        headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
-        payload = {"model": HF_EMBED_MODEL, "input": text}
+            raise EmbeddingError("HF_API_TOKEN is not set for Hugging Face embeddings")
 
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=60)
-            response.raise_for_status()
-            data = response.json()
-            # Response might be {'embedding': [...] } or list/array directly
-            if isinstance(data, dict) and "embedding" in data:
-                return data["embedding"]
-            if isinstance(data, list) and len(data) > 0 and isinstance(data[0], (int, float)):
-                return data
-            # Some endpoints return nested lists (per-token); try flatten/average
-            if isinstance(data, list) and all(isinstance(i, list) for i in data):
-                # average across token vectors
-                import numpy as _np
-
-                arr = _np.array(data, dtype=float)
-                return _np.mean(arr, axis=0).tolist()
-
-            raise RuntimeError(f"Unexpected embeddings response from Hugging Face: {data}")
-
+            client = InferenceClient(provider="hf-inference", token=HF_API_TOKEN, timeout=60)
+            result = client.feature_extraction(text, model=HF_EMBED_MODEL)
+            return _embedding_values(result)
+        except EmbeddingError:
+            raise
         except Exception as e:
             # If enabled, return a deterministic dev fallback embedding so the
             # app remains usable while network/keys are being fixed.
-            logging.warning("HF embedding error: %s", e)
+            logging.warning("Hugging Face embedding request failed: %s", type(e).__name__)
             enable_fallback = os.getenv("ENABLE_EMBED_FALLBACK", "").strip().lower() in ("1", "true", "yes")
             if enable_fallback:
                 # Default to 384-dimensional zero vector (miniLM default)
                 return [0.0] * 384
-            raise RuntimeError(f"Error generating embeddings from Hugging Face: {e}")
+            raise EmbeddingError(
+                "Hugging Face embedding request failed. Check HF_API_TOKEN, HF_EMBED_MODEL, "
+                "and outbound network access."
+            ) from e
 
-    raise RuntimeError(f"No supported embedding provider configured. Set EMBED_PROVIDER=hf or provide HF_API_TOKEN.")
+    raise EmbeddingError("Unsupported EMBED_PROVIDER. Set EMBED_PROVIDER=hf.")
